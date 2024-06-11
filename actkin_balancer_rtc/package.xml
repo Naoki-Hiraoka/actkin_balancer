@@ -10,7 +10,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>rtmbuild</depend>
+  <depend>rtmbuild2</depend>
   <depend>actkin_balancer_msgs</depend>
 
 </package>

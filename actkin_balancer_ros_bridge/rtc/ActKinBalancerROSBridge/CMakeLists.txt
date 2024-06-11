@@ -1,6 +1,5 @@
-add_compile_options(-std=c++11)
-set(CMAKE_BUILD_TYPE Release)
-
+# openrtm has deprecated coding. This causes too many warnings.
+#   warning: dynamic exception specifications are deprecated in C++11
 add_definitions(-Wno-deprecated)
 
 find_package(catkin REQUIRED COMPONENTS
