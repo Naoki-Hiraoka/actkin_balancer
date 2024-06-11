@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>actkin_balancer_rtc</name>
+  <name>actkin_balancer</name>
   <version>0.0.0</version>
   <description>The actkin_balancer_rtc package </description>
 

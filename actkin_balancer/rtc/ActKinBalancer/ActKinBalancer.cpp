@@ -71,8 +71,20 @@ RTC::ReturnCode_t ActKinBalancer::onExecute(RTC::UniqueId ec_id){
   return RTC::RTC_OK;
 }
 
-bool ActKinBalancer::templateParam(const double data){
+bool ActKinBalancer::startBalancer(){
+  return true;
 }
+bool ActKinBalancer::stopBalancer(){
+  return true;
+}
+
+bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
+  return true;
+}
+bool ActKinBalancer::getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
+  return true;
+}
+
 
 static const char* ActKinBalancer_spec[] = {
   "implementation_id", "ActKinBalancer",

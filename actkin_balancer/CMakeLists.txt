@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(actkin_balancer_rtc)
+project(actkin_balancer)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_BUILD_TYPE Release)

@@ -38,7 +38,11 @@ public:
   virtual RTC::ReturnCode_t onInitialize();
   virtual RTC::ReturnCode_t onExecute(RTC::UniqueId ec_id);
 
-  bool templateParam(const double data);
+  bool startBalancer();
+  bool stopBalancer();
+
+  bool setActKinBalancerParam(const actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param);
+  bool getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param);
 
 private:
 };

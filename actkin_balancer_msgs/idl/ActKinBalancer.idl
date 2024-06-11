@@ -1,11 +1,40 @@
 #ifndef ActKinBalancer_idl
 #define ActKinBalancer_idl
 
+#include "ExtendedDataTypes.idl"
+
 module actkin_balancer_msgs
 {
-  struct TemplateDataIdl
-  {
-    double data;
+  struct Region3D {
+    sequence<sequence<double, 3> > C;
+    sequence<double> ld;
+    sequence<double> ud;
+  };
+
+  struct RefContactIdl {
+    string name;
+    string link1; // URDF link name.
+    RTC::Pose3D localPose1; // link1 local
+    string link2; // URDF link name. ""はworld
+
+    sequence<boolean, 6> freeAxis; // localPose1 local/origin. 動かせない&接触力が発生する軸のみfalse
+    Region3D region; // localPose1 local
+    sequence<sequence<double, 6> > wrenchC; // localPose1 local. link1がlink2から受ける力に関する接触力制約.
+    sequence<double> wrenchld;
+    sequence<double> wrenchud;
+    //sequence<double, 6> wrenchw; // localPose1 frame/origin. link1がlink2から受ける力に関する重み.
+  };
+
+  typedef sequence<RefContactIdl> RefContactSequence;
+
+  struct RefRBIdl {
+    boolean data;
+  };
+
+  struct RefStateIdl {
+    RefContactSequence refObjectContact;
+    RefRBIdl refRB;
+    // RefContactSequence refRobotContact;
   };
 };
 
