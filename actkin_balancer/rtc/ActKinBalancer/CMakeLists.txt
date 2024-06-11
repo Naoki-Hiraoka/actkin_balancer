@@ -23,6 +23,8 @@ link_directories(
 add_library(ActKinBalancer SHARED
   ActKinBalancer.cpp
   ActKinBalancerService_impl.cpp
+  State.cpp
+  Goal.cpp
   )
 target_link_libraries(ActKinBalancer
   ${catkin_LIBRARIES}

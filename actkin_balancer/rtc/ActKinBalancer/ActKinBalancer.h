@@ -11,27 +11,35 @@
 #include <actkin_balancer_msgs/idl/ActKinBalancer.hh>
 
 #include "ActKinBalancerService_impl.h"
+#include "State.h"
+#include "Goal.h"
 
 class ActKinBalancer : public RTC::DataFlowComponentBase{
 protected:
+  class Ports {
+  public:
+    Ports();
+    void onInitialize(ActKinBalancer* component);
 
-  RTC::TimedDoubleSeq m_qRef_;
-  RTC::InPort<RTC::TimedDoubleSeq> m_qRefIn_;
-  RTC::TimedDoubleSeq m_tauRef_;
-  RTC::InPort<RTC::TimedDoubleSeq> m_tauRefIn_;
-  RTC::TimedDoubleSeq m_qAct_;
-  RTC::InPort<RTC::TimedDoubleSeq> m_qActIn_;
-  RTC::TimedDoubleSeq m_dqAct_;
-  RTC::InPort<RTC::TimedDoubleSeq> m_dqActIn_;
-  RTC::TimedDoubleSeq m_tauAct_;
-  RTC::InPort<RTC::TimedDoubleSeq> m_tauActIn_;
-  RTC::TimedDoubleSeq m_q_;
-  RTC::OutPort<RTC::TimedDoubleSeq> m_qOut_;
-  RTC::TimedDoubleSeq m_tau_;
-  RTC::OutPort<RTC::TimedDoubleSeq> m_tauOut_;
+    RTC::TimedDoubleSeq m_qRef_;
+    RTC::InPort<RTC::TimedDoubleSeq> m_qRefIn_;
+    RTC::TimedDoubleSeq m_tauRef_;
+    RTC::InPort<RTC::TimedDoubleSeq> m_tauRefIn_;
+    RTC::TimedDoubleSeq m_qAct_;
+    RTC::InPort<RTC::TimedDoubleSeq> m_qActIn_;
+    RTC::TimedDoubleSeq m_dqAct_;
+    RTC::InPort<RTC::TimedDoubleSeq> m_dqActIn_;
+    RTC::TimedDoubleSeq m_tauAct_;
+    RTC::InPort<RTC::TimedDoubleSeq> m_tauActIn_;
+    RTC::TimedDoubleSeq m_q_;
+    RTC::OutPort<RTC::TimedDoubleSeq> m_qOut_;
+    RTC::TimedDoubleSeq m_tau_;
+    RTC::OutPort<RTC::TimedDoubleSeq> m_tauOut_;
 
-  ActKinBalancerService_impl m_service0_;
-  RTC::CorbaPort m_templateControllerServicePort_;
+    ActKinBalancerService_impl m_service0_;
+    RTC::CorbaPort m_ActKinBalancerServicePort_;
+  };
+  Ports ports_;
 
 public:
   ActKinBalancer(RTC::Manager* manager);
