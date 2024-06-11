@@ -7,7 +7,10 @@ ActKinBalancer::Ports::Ports() :
   m_actBaseVelIn_("actBaseVelIn", m_actBaseVel_),
   m_actContactStateIn_("actContactStateIn", m_actContactState_),
 
-  m_refStateOut_("refStateOut",m_refState_),
+  m_refStateIn_("refStateIn",m_refState_),
+  m_orgOutStateIn_("orgOutStateIn",m_orgOutState_),
+
+  m_outStateOut_("outStateOut",m_outState_),
   m_ActKinBalancerServicePort_("ActKinBalancerService")
 {
 }
@@ -19,7 +22,10 @@ void ActKinBalancer::Ports::onInitialize(ActKinBalancer* component) {
   component->addInPort("actBaseVelIn", this->m_actBaseVelIn_);
   component->addInPort("actContactStateIn", this->m_actContactStateIn_);
 
-  component->addOutPort("refStateOut", this->m_refStateOut_);
+  component->addInPort("refStateIn", this->m_refStateIn_);
+  component->addInPort("orgOutStateIn", this->m_orgOutStateIn_);
+
+  component->addOutPort("outStateOut", this->m_outStateOut_);
 
   this->m_ActKinBalancerServicePort_.registerProvider("service0", "ActKinBalancerService", this->m_service0_);
   component->addPort(this->m_ActKinBalancerServicePort_);
@@ -107,14 +113,19 @@ bool ActKinBalancer::readInPortDataForState(ActKinBalancer::Ports& ports, const 
 // static function
 bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const std::string& instance_name, const double& dt, const actkin_balancer::State& state,
                                              actkin_balancer::Goal& goal){
+
+  while(ports.m_refStateIn_.isNew()) ports.m_refStateIn_.read();
+
+  while(ports.m_orgOutStateIn_.isNew()) ports.m_orgOutStateIn_.read();
+
   return true;
 }
 
 // static function
 bool ActKinBalancer::writeOutPortData(const actkin_balancer::State& state, const ActKinBalancer::ControlMode& mode,
                                         ActKinBalancer::Ports& ports){
-  ports.m_refState_;
-  ports.m_refStateOut_.write();
+  ports.m_outState_;
+  ports.m_outStateOut_.write();
   return true;
 }
 

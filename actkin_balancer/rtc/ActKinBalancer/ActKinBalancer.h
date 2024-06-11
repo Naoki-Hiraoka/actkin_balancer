@@ -53,8 +53,14 @@ protected:
     contact_state_msgs::TimedContactSeq m_actContactState_;
     RTC::InPort<contact_state_msgs::TimedContactSeq> m_actContactStateIn_;
 
-    actkin_stabilizer_msgs::RefStateIdl m_refState_;
-    RTC::OutPort<actkin_stabilizer_msgs::RefStateIdl> m_refStateOut_;
+    actkin_balancer_msgs::RefStateIdl m_refState_;
+    RTC::InPort<actkin_balancer_msgs::RefStateIdl> m_refStateIn_;
+
+    actkin_stabilizer_msgs::RefStateIdl m_orgOutState_;
+    RTC::InPort<actkin_stabilizer_msgs::RefStateIdl> m_orgOutStateIn_;
+
+    actkin_stabilizer_msgs::RefStateIdl m_outState_;
+    RTC::OutPort<actkin_stabilizer_msgs::RefStateIdl> m_outStateOut_;
 
     ActKinBalancerService_impl m_service0_;
     RTC::CorbaPort m_ActKinBalancerServicePort_;
