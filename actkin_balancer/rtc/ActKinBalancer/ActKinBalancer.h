@@ -11,6 +11,7 @@
 #include <mutex>
 
 #include <actkin_balancer_msgs/idl/ActKinBalancer.hh>
+#include <actkin_stabilizer_msgs/idl/ActKinStabilizer.hh>
 
 #include "ActKinBalancerService_impl.h"
 #include "State.h"
@@ -52,10 +53,8 @@ protected:
     contact_state_msgs::TimedContactSeq m_actContactState_;
     RTC::InPort<contact_state_msgs::TimedContactSeq> m_actContactStateIn_;
 
-    RTC::TimedDoubleSeq m_q_;
-    RTC::OutPort<RTC::TimedDoubleSeq> m_qOut_;
-    RTC::TimedDoubleSeq m_tau_;
-    RTC::OutPort<RTC::TimedDoubleSeq> m_tauOut_;
+    actkin_stabilizer_msgs::RefStateIdl m_refState_;
+    RTC::OutPort<actkin_stabilizer_msgs::RefStateIdl> m_refStateOut_;
 
     ActKinBalancerService_impl m_service0_;
     RTC::CorbaPort m_ActKinBalancerServicePort_;

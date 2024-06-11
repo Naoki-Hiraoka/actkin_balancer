@@ -4,6 +4,7 @@ add_definitions(-Wno-deprecated)
 
 find_package(catkin REQUIRED COMPONENTS
   actkin_balancer_msgs
+  actkin_stabilizer_msgs
   rtm_data_tools
   contact_state_msgs
   eigen_rtm_conversions

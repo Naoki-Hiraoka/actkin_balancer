@@ -7,8 +7,7 @@ ActKinBalancer::Ports::Ports() :
   m_actBaseVelIn_("actBaseVelIn", m_actBaseVel_),
   m_actContactStateIn_("actContactStateIn", m_actContactState_),
 
-  m_qOut_("q", m_q_),
-  m_tauOut_("tauOut", m_tau_),
+  m_refStateOut_("refStateOut",m_refState_),
   m_ActKinBalancerServicePort_("ActKinBalancerService")
 {
 }
@@ -20,8 +19,7 @@ void ActKinBalancer::Ports::onInitialize(ActKinBalancer* component) {
   component->addInPort("actBaseVelIn", this->m_actBaseVelIn_);
   component->addInPort("actContactStateIn", this->m_actContactStateIn_);
 
-  component->addOutPort("q", this->m_qOut_);
-  component->addOutPort("tauOut", this->m_tauOut_);
+  component->addOutPort("refStateOut", this->m_refStateOut_);
 
   this->m_ActKinBalancerServicePort_.registerProvider("service0", "ActKinBalancerService", this->m_service0_);
   component->addPort(this->m_ActKinBalancerServicePort_);
@@ -115,24 +113,8 @@ bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const s
 // static function
 bool ActKinBalancer::writeOutPortData(const actkin_balancer::State& state, const ActKinBalancer::ControlMode& mode,
                                         ActKinBalancer::Ports& ports){
-  {
-    ports.m_q_.tm = ports.m_qAct_.tm;
-    ports.m_q_.data.length(0);
-    for (int i = 0 ; i < 0; i++){
-      ports.m_q_.data[i] = 0.0;
-    }
-    ports.m_qOut_.write();
-  }
-
-  {
-    ports.m_tau_.tm = ports.m_qAct_.tm;
-    ports.m_tau_.data.length(0);
-    for (int i = 0 ; i < 0; i++){
-      ports.m_tau_.data[i] = 0;
-    }
-    ports.m_tauOut_.write();
-  }
-
+  ports.m_refState_;
+  ports.m_refStateOut_.write();
   return true;
 }
 
