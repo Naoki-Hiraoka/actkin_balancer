@@ -2,7 +2,7 @@
 
 module OpenHRP
 {
-  interface TemplateControllerService
+  interface ActKinBalancerService
   {
     boolean templateParam(in double data);
   };

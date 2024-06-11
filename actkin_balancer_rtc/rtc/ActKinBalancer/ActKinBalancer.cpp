@@ -1,6 +1,6 @@
-#include "TemplateController.h"
+#include "ActKinBalancer.h"
 
-TemplateController::TemplateController(RTC::Manager* manager):
+ActKinBalancer::ActKinBalancer(RTC::Manager* manager):
   RTC::DataFlowComponentBase(manager),
   m_qRefIn_("qRefIn", m_qRef_),
   m_tauRefIn_("tauRefIn", m_tauRef_),
@@ -9,12 +9,12 @@ TemplateController::TemplateController(RTC::Manager* manager):
   m_tauActIn_("tauActIn", m_tauAct_),
   m_qOut_("q", m_q_),
   m_tauOut_("tauOut", m_tau_),
-  m_templateControllerServicePort_("TemplateControllerService")
+  m_templateControllerServicePort_("ActKinBalancerService")
 {
   this->m_service0_.setComp(this);
 }
 
-RTC::ReturnCode_t TemplateController::onInitialize(){
+RTC::ReturnCode_t ActKinBalancer::onInitialize(){
   addInPort("qRefIn", this->m_qRefIn_);
   addInPort("tauRefIn", this->m_tauRefIn_);
   addInPort("qActIn", this->m_qActIn_);
@@ -22,13 +22,13 @@ RTC::ReturnCode_t TemplateController::onInitialize(){
   addInPort("tauActIn", this->m_tauActIn_);
   addOutPort("q", this->m_qOut_);
   addOutPort("tauOut", this->m_tauOut_);
-  this->m_templateControllerServicePort_.registerProvider("service0", "TemplateControllerService", this->m_service0_);
+  this->m_templateControllerServicePort_.registerProvider("service0", "ActKinBalancerService", this->m_service0_);
   addPort(this->m_templateControllerServicePort_);
 
   return RTC::RTC_OK;
 }
 
-RTC::ReturnCode_t TemplateController::onExecute(RTC::UniqueId ec_id){
+RTC::ReturnCode_t ActKinBalancer::onExecute(RTC::UniqueId ec_id){
 
   if (this->m_qRefIn_.isNew()){
     this->m_qRefIn_.read();
@@ -71,13 +71,13 @@ RTC::ReturnCode_t TemplateController::onExecute(RTC::UniqueId ec_id){
   return RTC::RTC_OK;
 }
 
-bool TemplateController::templateParam(const double data){
+bool ActKinBalancer::templateParam(const double data){
 }
 
-static const char* TemplateController_spec[] = {
-  "implementation_id", "TemplateController",
-  "type_name",         "TemplateController",
-  "description",       "TemplateController component",
+static const char* ActKinBalancer_spec[] = {
+  "implementation_id", "ActKinBalancer",
+  "type_name",         "ActKinBalancer",
+  "description",       "ActKinBalancer component",
   "version",           "0.0",
   "vendor",            "Takuma-Hiraoka",
   "category",          "example",
@@ -90,8 +90,8 @@ static const char* TemplateController_spec[] = {
 
 
 extern "C"{
-  void TemplateControllerInit(RTC::Manager* manager) {
-    RTC::Properties profile(TemplateController_spec);
-    manager->registerFactory(profile, RTC::Create<TemplateController>, RTC::Delete<TemplateController>);
+  void ActKinBalancerInit(RTC::Manager* manager) {
+    RTC::Properties profile(ActKinBalancer_spec);
+    manager->registerFactory(profile, RTC::Create<ActKinBalancer>, RTC::Delete<ActKinBalancer>);
   }
 };

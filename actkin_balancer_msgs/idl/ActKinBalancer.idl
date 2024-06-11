@@ -1,0 +1,12 @@
+#ifndef ActKinBalancer_idl
+#define ActKinBalancer_idl
+
+module actkin_balancer_msgs
+{
+  struct TemplateDataIdl
+  {
+    double data;
+  };
+};
+
+#endif

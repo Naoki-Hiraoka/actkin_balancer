@@ -1,5 +1,5 @@
-#ifndef TemplateController_H
-#define TemplateController_H
+#ifndef ActKinBalancer_H
+#define ActKinBalancer_H
 
 #include <rtm/Manager.h>
 #include <rtm/DataFlowComponentBase.h>
@@ -8,11 +8,11 @@
 #include <rtm/CorbaPort.h>
 #include <rtm/idl/BasicDataType.hh>
 
-#include <template_controller_msgs/idl/TemplateController.hh>
+#include <actkin_balancer_msgs/idl/ActKinBalancer.hh>
 
-#include "TemplateControllerService_impl.h"
+#include "ActKinBalancerService_impl.h"
 
-class TemplateController : public RTC::DataFlowComponentBase{
+class ActKinBalancer : public RTC::DataFlowComponentBase{
 protected:
 
   RTC::TimedDoubleSeq m_qRef_;
@@ -30,11 +30,11 @@ protected:
   RTC::TimedDoubleSeq m_tau_;
   RTC::OutPort<RTC::TimedDoubleSeq> m_tauOut_;
 
-  TemplateControllerService_impl m_service0_;
+  ActKinBalancerService_impl m_service0_;
   RTC::CorbaPort m_templateControllerServicePort_;
 
 public:
-  TemplateController(RTC::Manager* manager);
+  ActKinBalancer(RTC::Manager* manager);
   virtual RTC::ReturnCode_t onInitialize();
   virtual RTC::ReturnCode_t onExecute(RTC::UniqueId ec_id);
 
@@ -45,7 +45,7 @@ private:
 
 extern "C"
 {
-  void TemplateControllerInit(RTC::Manager* manager);
+  void ActKinBalancerInit(RTC::Manager* manager);
 }
 
-#endif // TemplateController_H
+#endif // ActKinBalancer_H
