@@ -4,6 +4,9 @@ add_definitions(-Wno-deprecated)
 
 find_package(catkin REQUIRED COMPONENTS
   actkin_balancer_msgs
+  rtm_data_tools
+  contact_state_msgs
+  eigen_rtm_conversions
   )
 find_package(choreonoid REQUIRED)
 

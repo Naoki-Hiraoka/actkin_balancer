@@ -41,16 +41,17 @@ protected:
     Ports();
     void onInitialize(ActKinBalancer* component);
 
-    RTC::TimedDoubleSeq m_qRef_;
-    RTC::InPort<RTC::TimedDoubleSeq> m_qRefIn_;
-    RTC::TimedDoubleSeq m_tauRef_;
-    RTC::InPort<RTC::TimedDoubleSeq> m_tauRefIn_;
     RTC::TimedDoubleSeq m_qAct_;
     RTC::InPort<RTC::TimedDoubleSeq> m_qActIn_;
     RTC::TimedDoubleSeq m_dqAct_;
     RTC::InPort<RTC::TimedDoubleSeq> m_dqActIn_;
-    RTC::TimedDoubleSeq m_tauAct_;
-    RTC::InPort<RTC::TimedDoubleSeq> m_tauActIn_;
+    RTC::TimedPose3D m_actBasePose_;
+    RTC::InPort<RTC::TimedPose3D> m_actBasePoseIn_;
+    RTC::TimedVelocity3D m_actBaseVel_;
+    RTC::InPort<RTC::TimedVelocity3D> m_actBaseVelIn_;
+    contact_state_msgs::TimedContactSeq m_actContactState_;
+    RTC::InPort<contact_state_msgs::TimedContactSeq> m_actContactStateIn_;
+
     RTC::TimedDoubleSeq m_q_;
     RTC::OutPort<RTC::TimedDoubleSeq> m_qOut_;
     RTC::TimedDoubleSeq m_tau_;

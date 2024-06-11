@@ -1,11 +1,12 @@
 #include "ActKinBalancer.h"
 
 ActKinBalancer::Ports::Ports() :
-  m_qRefIn_("qRefIn", m_qRef_),
-  m_tauRefIn_("tauRefIn", m_tauRef_),
-  m_qActIn_("qActIn", m_qAct_),
-  m_dqActIn_("dqActIn", m_dqAct_),
-  m_tauActIn_("tauActIn", m_tauAct_),
+  m_qActIn_("qAct", m_qAct_),
+  m_dqActIn_("dqAct", m_dqAct_),
+  m_actBasePoseIn_("actBasePoseIn", m_actBasePose_),
+  m_actBaseVelIn_("actBaseVelIn", m_actBaseVel_),
+  m_actContactStateIn_("actContactStateIn", m_actContactState_),
+
   m_qOut_("q", m_q_),
   m_tauOut_("tauOut", m_tau_),
   m_ActKinBalancerServicePort_("ActKinBalancerService")
@@ -13,11 +14,12 @@ ActKinBalancer::Ports::Ports() :
 }
 
 void ActKinBalancer::Ports::onInitialize(ActKinBalancer* component) {
-  component->addInPort("qRefIn", this->m_qRefIn_);
-  component->addInPort("tauRefIn", this->m_tauRefIn_);
-  component->addInPort("qActIn", this->m_qActIn_);
-  component->addInPort("dqActIn", this->m_dqActIn_);
-  component->addInPort("tauActIn", this->m_tauActIn_);
+  component->addInPort("qAct", this->m_qActIn_);
+  component->addInPort("dqAct", this->m_dqActIn_);
+  component->addInPort("actBasePoseIn", this->m_actBasePoseIn_);
+  component->addInPort("actBaseVelIn", this->m_actBaseVelIn_);
+  component->addInPort("actContactStateIn", this->m_actContactStateIn_);
+
   component->addOutPort("q", this->m_qOut_);
   component->addOutPort("tauOut", this->m_tauOut_);
 
@@ -55,6 +57,7 @@ RTC::ReturnCode_t ActKinBalancer::onExecute(RTC::UniqueId ec_id){
 
   // startABC直後の一回のみ実行
   if(this->mode_.isSyncToABCInit()){
+    this->state_.onStartBalancer();
   }
 
   if(!ActKinBalancer::readInPortDataForState(this->ports_, instance_name, dt,
@@ -89,27 +92,16 @@ RTC::ReturnCode_t ActKinBalancer::onDeactivated(RTC::UniqueId ec_id){
 // static function
 bool ActKinBalancer::readInPortDataForState(ActKinBalancer::Ports& ports, const std::string& instance_name, const double& dt,
                                             actkin_balancer::State& state){
+  bool qAct_updated = false;
+  if(ports.m_qActIn_.isNew()) qAct_updated = true;
+  while(ports.m_qActIn_.isNew()) ports.m_qActIn_.read();
+  while(ports.m_dqActIn_.isNew()) ports.m_dqActIn_.read();
+  while(ports.m_actBasePoseIn_.isNew()) ports.m_actBasePoseIn_.read();
+  while(ports.m_actBaseVelIn_.isNew()) ports.m_actBaseVelIn_.read();
+  state.updateRobotFromIdl(ports.m_qAct_, ports.m_dqAct_, ports.m_actBasePose_, ports.m_actBaseVel_, dt);
 
-
-  if (ports.m_qRefIn_.isNew()){
-    ports.m_qRefIn_.read();
-  }
-
-  if (ports.m_tauRefIn_.isNew()){
-    ports.m_tauRefIn_.read();
-  }
-
-  if (ports.m_qActIn_.isNew()){
-    ports.m_qActIn_.read();
-  }
-
-  if (ports.m_dqActIn_.isNew()){
-    ports.m_dqActIn_.read();
-  }
-
-  if (ports.m_tauActIn_.isNew()){
-    ports.m_tauActIn_.read();
-  }
+  while(ports.m_actContactStateIn_.isNew()) ports.m_actContactStateIn_.read();
+  state.updateContactFromIdl(ports.m_actContactState_);
 
   return true;
 }
@@ -124,19 +116,19 @@ bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const s
 bool ActKinBalancer::writeOutPortData(const actkin_balancer::State& state, const ActKinBalancer::ControlMode& mode,
                                         ActKinBalancer::Ports& ports){
   {
-    ports.m_q_.tm = ports.m_qRef_.tm;
-    ports.m_q_.data.length(ports.m_qRef_.data.length());
-    for (int i = 0 ; i < ports.m_q_.data.length(); i++){
-      ports.m_q_.data[i] = ports.m_qRef_.data[i];
+    ports.m_q_.tm = ports.m_qAct_.tm;
+    ports.m_q_.data.length(0);
+    for (int i = 0 ; i < 0; i++){
+      ports.m_q_.data[i] = 0.0;
     }
     ports.m_qOut_.write();
   }
 
   {
-    ports.m_tau_.tm = ports.m_qRef_.tm;
-    ports.m_tau_.data.length(ports.m_tauRef_.data.length());
-    for (int i = 0 ; i < ports.m_q_.data.length(); i++){
-      ports.m_tau_.data[i] = ports.m_tauRef_.data[i];
+    ports.m_tau_.tm = ports.m_qAct_.tm;
+    ports.m_tau_.data.length(0);
+    for (int i = 0 ; i < 0; i++){
+      ports.m_tau_.data[i] = 0;
     }
     ports.m_tauOut_.write();
   }
