@@ -8,7 +8,6 @@ ActKinBalancer::Ports::Ports() :
   m_actContactStateIn_("actContactStateIn", m_actContactState_),
 
   m_refStateIn_("refStateIn",m_refState_),
-  m_orgOutStateIn_("orgOutStateIn",m_orgOutState_),
 
   m_outStateOut_("outStateOut",m_outState_),
   m_ActKinBalancerServicePort_("ActKinBalancerService")
@@ -23,7 +22,6 @@ void ActKinBalancer::Ports::onInitialize(ActKinBalancer* component) {
   component->addInPort("actContactStateIn", this->m_actContactStateIn_);
 
   component->addInPort("refStateIn", this->m_refStateIn_);
-  component->addInPort("orgOutStateIn", this->m_orgOutStateIn_);
 
   component->addOutPort("outStateOut", this->m_outStateOut_);
 
@@ -115,8 +113,6 @@ bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const s
                                              actkin_balancer::Goal& goal){
 
   while(ports.m_refStateIn_.isNew()) ports.m_refStateIn_.read();
-
-  while(ports.m_orgOutStateIn_.isNew()) ports.m_orgOutStateIn_.read();
 
   return true;
 }

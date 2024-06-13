@@ -29,6 +29,7 @@ add_library(ActKinBalancer SHARED
   ActKinBalancerService_impl.cpp
   State.cpp
   Goal.cpp
+  FootStepGenerator.cpp
   )
 target_link_libraries(ActKinBalancer
   ${catkin_LIBRARIES}

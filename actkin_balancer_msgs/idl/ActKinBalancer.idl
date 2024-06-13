@@ -27,14 +27,18 @@ module actkin_balancer_msgs
 
   typedef sequence<RefContactIdl> RefContactSequence;
 
+  struct RefRBPointIdl {
+    double time; // time from prev[s]
+    RTC::Pose3D pose; // world frame
+  };
+
   struct RefRBIdl {
-    boolean data;
+    sequence<RefRBPointIdl> trajectory;
   };
 
   struct RefStateIdl {
-    RefContactSequence refObjectContact;
+    //RefContactSequence refObjectContact;
     RefRBIdl refRB;
-    // RefContactSequence refRobotContact;
   };
 };
 

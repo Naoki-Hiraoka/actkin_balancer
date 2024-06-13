@@ -7,6 +7,32 @@
 #include <cnoid/SceneGraph>
 
 namespace actkin_balancer{
+  void EEParam::flipY(EEParam& param){
+    std::string orgname = param.name;
+    cnoid::LinkPtr orgLink = param.parentLink;
+    param = *this;
+    param.name = orgname;
+    param.parentLink = orgLink;
+    param.localPose.translation()[1] *= -1;
+    param.localPose.linear() = param.localPose.linear().inverse(); // rx.ry=0と仮定している
+    param.copOffset[1] *= -1;
+    for(int i=0;i<param.hull.size();i++) param.hull[i][1] *= -1;
+    for(int i=0;i<param.safeHull.size();i++) param.safeHull[i][1] *= -1;
+    param.defaultTranslatePos[1] *= -1;
+    for(int i=0;i<param.defaultStrideLimitationHull.size();i++) param.defaultStrideLimitationHull[i][1] *= -1;
+    std::swap(param.strideLimitationMaxTheta, param.strideLimitationMinTheta);
+    param.strideLimitationMaxTheta *= -1;
+    param.strideLimitationMinTheta *= -1;
+    for(int i=0;i<param.strideLimitationHull.size();i++) param.strideLimitationHull[i][1] *= -1;
+    for(int i=0;i<param.wrenchC.rows();i++){
+      param.wrenchC(i,1) *= -1;
+      param.wrenchC(i,3) *= -1;
+    }
+    for(int i=0;i<param.region.C.rows();i++){
+      param.region.C(i,1) *= -1;
+    }
+  }
+
   void State::init(const cnoid::BodyPtr& robot_){
 
     this->robot = robot_;
@@ -18,6 +44,9 @@ namespace actkin_balancer{
         this->linkNameMap[shape->child(0)->name()] = this->robot->link(l);
       }
     }
+
+    this->ee.resize(2);
+    this->ee[0].flipY(this->ee[1]);
 
     return;
   };
