@@ -7,6 +7,10 @@
 #include <cnoid/Body>
 
 namespace actkin_balancer{
+  static const int NUM_LEGS = 2;
+  static const int RLEG = 0;
+  static const int LLEG = 1;
+
   class Region3D {
   public:
     Eigen::MatrixXd C = Eigen::MatrixXd::Identity(3,3);
@@ -29,9 +33,8 @@ namespace actkin_balancer{
   public:
     std::string name = "rleg";
     cnoid::LinkPtr parentLink = nullptr;
-    cnoid::Isometry3 localPose = cnoid::Isometry3::Identity(); // Parent Link Frame
-    cnoid::Vector3 copOffset = cnoid::Vector3{0.0,0.02,0.0};
-    std::vector<cnoid::Vector3> hull = std::vector<cnoid::Vector3>{cnoid::Vector3(0.115,0.065,0.0),cnoid::Vector3(-0.095,0.065,0.0),cnoid::Vector3(-0.095,-0.065,0.0),cnoid::Vector3(0.115,-0.065,0.0)}; // endeffector frame.  凸形状で,上から見て半時計回り. Z成分は0. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.
+    cnoid::Isometry3 localPose = cnoid::Isometry3::Identity(); // Parent Link Frame. クロスできたりジャンプできたりする脚でないと左右方向(外側向き)の着地位置修正は難しいので、その方向に転びそうになることが極力ないように内側にlocalPoseをオフセットさせておくとよい.
+    std::vector<cnoid::Vector3> hull = std::vector<cnoid::Vector3>{cnoid::Vector3(0.115,0.065,0.0),cnoid::Vector3(-0.095,0.065,0.0),cnoid::Vector3(-0.095,-0.065,0.0),cnoid::Vector3(0.115,-0.065,0.0)}; // endeffector frame.  凸形状で,上から見て半時計回り. Z成分は0. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  3点以上必要.
     std::vector<cnoid::Vector3> safeHull = std::vector<cnoid::Vector3>{cnoid::Vector3(0.075,0.055,0.0),cnoid::Vector3(-0.075,0.055,0.0),cnoid::Vector3(-0.075,-0.055,0.0),cnoid::Vector3(0.075,-0.055,0.0)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. Z成分は0でなければならない. 大きさはhull以下
 
     // stride parameters
@@ -66,6 +69,7 @@ namespace actkin_balancer{
     cnoid::VectorX wrenchud;
     Region3D region; // endeffector frame.
 
+    void updateFromHull();
     void flipY(EEParam& param); //このEEParamのY成分を反転させてparamにコピーする. nameとparentLink以外
   };
 
@@ -80,12 +84,15 @@ namespace actkin_balancer{
     std::vector<std::shared_ptr<Contact> > contacts; // actual
 
     // objects
+
+    // legContacts
+    std::vector<bool> actContact = std::vector<bool>{false,false};// rleg, lleg. contactsから計算されるactual contact
   public:
     std::unordered_map<std::string, cnoid::LinkPtr> linkNameMap; // MODE_ABC中はconstant. URDFのLink名 -> linkPtr
 
   public:
     // parameters. contactable pointの情報.
-    std::vector<EEParam> ee = std::vector<EEParam>(2); // rleg, lleg
+    std::vector<EEParam> ee = std::vector<EEParam>(NUM_LEGS); // rleg, lleg
 
   public:
 

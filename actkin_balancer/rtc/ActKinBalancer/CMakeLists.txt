@@ -8,16 +8,20 @@ find_package(catkin REQUIRED COMPONENTS
   rtm_data_tools
   contact_state_msgs
   eigen_rtm_conversions
+  cpp_filters
   )
 find_package(choreonoid REQUIRED)
 
 find_package(PkgConfig)
 pkg_check_modules(openrtm_aist openrtm-aist REQUIRED)
 
+find_package(OpenCV REQUIRED)
+
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${CHOREONOID_INCLUDE_DIRS}
   ${openrtm_aist_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
   )
 
 link_directories(
@@ -30,11 +34,13 @@ add_library(ActKinBalancer SHARED
   State.cpp
   Goal.cpp
   FootStepGenerator.cpp
+  MathUtil.cpp
   )
 target_link_libraries(ActKinBalancer
   ${catkin_LIBRARIES}
   ${CHOREONOID_BODY_LIBRARIES}
   ${openrtm_aist_LIBRARIES}
+  ${OpenCV_LIBRARIES}
   ${${PROJECT_NAME}_IDLLIBRARY_DIRS}
   )
 set_target_properties(ActKinBalancer PROPERTIES PREFIX "") # libActKinBalancer.so -> ActKinBalancer.so

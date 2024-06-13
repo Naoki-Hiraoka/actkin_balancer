@@ -18,7 +18,6 @@ module actkin_balancer
       string rlegLink; // URDF link name.
       string llegLink; // URDF link name.
       RTC::Pose3D eeLocalPose; // link local
-      sequence<double, 2> eeCOPOffset; /// localPose frame. 足裏COPの目標位置. 幾何的な位置はこれ無しで考えるが、目標COPを考えるときはこれを足す. クロスできたりジャンプできたりする脚でないと左右方向(外側向き)の着地位置修正は難しいので、その方向に転びそうになることが極力ないように内側にcopをオフセットさせておくとよい.
       sequence<sequence<double, 2> > eeHull; /// localPose frame. 単位[m]. 干渉計算に使用される. また、この値を用いて出力のregionやwrenchCが生成される.
       sequence<sequence<double, 2> > eeSafeHull; /// localPose frame. 単位[m]. COPの存在可能領域. eeHull以下にすること
 

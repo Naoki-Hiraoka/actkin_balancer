@@ -7,6 +7,59 @@
 #include <cnoid/SceneGraph>
 
 namespace actkin_balancer{
+  void EEParam::updateFromHull() {
+    {
+      // update WrenchC, wrenchld, wrenchud
+      // 0 <  0  0  1  0  0  0 < 1e10
+      // 0 <  1  0 mt  0  0  0 < 1e10
+      // 0 < -1  0 mt  0  0  0 < 1e10
+      // 0 <  0  1 mt  0  0  0 < 1e10
+      // 0 <  0 -1 mt  0  0  0 < 1e10
+      // 0 <  0  0  d r1 r2  0 < 1e10 ;; x hull.size()
+      // 0 <  0  0 mr  0  0  1 < 1e10
+      // 0 <  0  0 mr  0  0 -1 < 1e10
+      int constraintDim = 7 + this->hull.size();
+      this->wrenchC = Eigen::MatrixXd::Zero(constraintDim,6);
+      this->wrenchld = Eigen::VectorXd::Zero(constraintDim);
+      this->wrenchud = 1e10 * Eigen::VectorXd::Ones(constraintDim);
+      int idx=0;
+      this->wrenchC(idx,2) = 1.0; this->wrenchld[idx] = 50.0; idx++;
+      this->wrenchC(idx,0) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
+      this->wrenchC(idx,0) = -1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
+      this->wrenchC(idx,1) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
+      this->wrenchC(idx,1) = -1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
+      for(int j=0;j<this->hull.size();j++){
+        cnoid::Vector3 v1 = this->hull[j]; // EEF frame/origin
+        cnoid::Vector3 v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
+        if(v1.head<2>() == v2.head<2>()) continue;
+        cnoid::Vector3 r = cnoid::Vector3(v2[1]-v1[1],v1[0]-v2[0],0).normalized();
+        double d = r.dot(v1);
+        this->wrenchC(idx,2) = d; this->wrenchC(idx,3) = -r[1]; this->wrenchC(idx,4) = r[0]; idx++;
+      }
+      this->wrenchC(idx,5) = 1.0; this->wrenchC(idx,2) = this->muRot; idx++;
+      this->wrenchC(idx,5) = -1.0; this->wrenchC(idx,2) = this->muRot; idx++;
+    }
+
+    {
+      // update region
+      int regionDim = 1 + this->hull.size();
+      this->region.C = Eigen::MatrixXd::Zero(regionDim,6);
+      this->region.ld = -1e10 * Eigen::VectorXd::Zero(regionDim);
+      this->region.ud = +1e10 * Eigen::VectorXd::Ones(regionDim);
+      int idx=0;
+      this->region.C(idx,2) = 1.0; this->region.ld[idx] = -this->regionMargin; this->region.ud[idx] = this->regionMargin;
+      for(int j=0;j<this->hull.size();j++){
+        cnoid::Vector3 v1 = this->hull[j]; // EEF frame/origin
+        cnoid::Vector3 v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
+        if(v1.head<2>() == v2.head<2>()) continue;
+        cnoid::Vector3 r = cnoid::Vector3(v2[1]-v1[1],v1[0]-v2[0],0).normalized();
+        double d = r.dot(v1);
+        this->region.C(idx,0) = r[0]; this->region.C(idx,1) = r[1]; this->region.ud[idx] = d; idx++;
+      }
+    }
+
+  }
+
   void EEParam::flipY(EEParam& param){
     std::string orgname = param.name;
     cnoid::LinkPtr orgLink = param.parentLink;
@@ -15,7 +68,6 @@ namespace actkin_balancer{
     param.parentLink = orgLink;
     param.localPose.translation()[1] *= -1;
     param.localPose.linear() = param.localPose.linear().inverse(); // rx.ry=0と仮定している
-    param.copOffset[1] *= -1;
     for(int i=0;i<param.hull.size();i++) param.hull[i][1] *= -1;
     for(int i=0;i<param.safeHull.size();i++) param.safeHull[i][1] *= -1;
     param.defaultTranslatePos[1] *= -1;
@@ -45,8 +97,9 @@ namespace actkin_balancer{
       }
     }
 
-    this->ee.resize(2);
-    this->ee[0].flipY(this->ee[1]);
+    this->ee.resize(NUM_LEGS);
+    this->ee[RLEG].updateFromHull();
+    this->ee[RLEG].flipY(this->ee[LLEG]);
 
     return;
   };
@@ -112,6 +165,7 @@ namespace actkin_balancer{
   }
 
   void State::updateContactFromIdl(const contact_state_msgs::TimedContactSeq& m_actContactState){
+    // update contacts
     this->contacts.resize(m_actContactState.data.length());
     int numContact= 0;
     for(int i=0;i<m_actContactState.data.length();i++){
@@ -136,6 +190,25 @@ namespace actkin_balancer{
       numContact++;
     }
     this->contacts.resize(numContact);
+
+    // update actContacts
+    for(int LEG=0;LEG<NUM_LEGS;LEG++){
+      cnoid::Isometry3 poseInv = this->ee[LEG].parentLink->T() * this->ee[LEG].localPose;
+      this->actContact[LEG] = false;
+      for(int i=0;i<this->contacts.size();i++){
+        if( ((this->contacts[i]->link1 == this->ee[LEG].parentLink) && (this->contacts[i]->link2 == nullptr)) ||
+            ((this->contacts[i]->link1 == nullptr) && (this->contacts[i]->link2 == this->ee[LEG].parentLink)) ) {
+          cnoid::Vector3 value = this->ee[LEG].region.C * (poseInv * (this->contacts[i]->link1 ? this->contacts[i]->link1->T() * this->contacts[i]->localPose1.translation() : this->contacts[i]->localPose1.translation()));
+          // TODO 法線方向のチェック
+          if( ((value - this->ee[LEG].region.ld).array() >= 0.0).all() &&
+              ((this->ee[LEG].region.ud - value).array() >= 0.0).all() ){
+            this->actContact[LEG] = true;
+            break;
+          }
+        }
+      }
+
+    }
   }
 
 };

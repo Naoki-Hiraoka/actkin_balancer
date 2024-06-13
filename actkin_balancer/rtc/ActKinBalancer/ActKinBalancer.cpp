@@ -139,6 +139,19 @@ bool ActKinBalancer::stopBalancer(){
 
 bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
   std::lock_guard<std::mutex> guard(this->mutex_);
+  if(this->mode_.isABCRunning()) return true;
+
+  if(this->state_.linkNameMap.find(std::string(i_param.rlegLink)) != this->state_.linkNameMap.end()){
+    this->state_.ee[0].parentLink = this->state_.linkNameMap.find(std::string(i_param.rlegLink))->second;
+  }else{
+    std::cerr << "[" << m_profile.instance_name << "] "<< i_param.rlegLink << " not found" << std::endl;
+  }
+
+  if(this->state_.linkNameMap.find(std::string(i_param.llegLink)) != this->state_.linkNameMap.end()){
+    this->state_.ee[1].parentLink = this->state_.linkNameMap.find(std::string(i_param.llegLink))->second;
+  }else{
+    std::cerr << "[" << m_profile.instance_name << "] "<< i_param.llegLink << " not found" << std::endl;
+  }
   return true;
 }
 bool ActKinBalancer::getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
