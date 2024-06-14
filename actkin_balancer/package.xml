@@ -12,5 +12,6 @@
 
   <depend>rtmbuild2</depend>
   <depend>actkin_balancer_msgs</depend>
+  <depend>actkin_stabilizer_msgs</depend>
 
 </package>

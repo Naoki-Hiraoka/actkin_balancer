@@ -33,6 +33,7 @@ add_library(ActKinBalancer SHARED
   ActKinBalancerService_impl.cpp
   State.cpp
   Goal.cpp
+  OutPut.cpp
   FootStepGenerator.cpp
   MathUtil.cpp
   )
