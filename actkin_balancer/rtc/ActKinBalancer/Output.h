@@ -1,5 +1,5 @@
-#ifndef ACTKINBALANCER_GOAL_H
-#define ACTKINBALANCER_GOAL_H
+#ifndef ACTKINBALANCER_OUTPUT_H
+#define ACTKINBALANCER_OUTPUT_H
 
 #include <actkin_stabilizer_msgs/idl/ActKinStabilizer.hh>
 #include <cnoid/Body>
@@ -64,14 +64,22 @@ namespace actkin_balancer {
     cnoid::Isometry3 localPose2 = cnoid::Isometry3::Identity();
   };
 
+  enum class Feasibility {
+    FEASIBLE,
+    UNPREFERABLE,
+    POSTPONED,
+    INFEASIBLE
+  };
+
   class Output {
   public:
     std::vector<RefEE> eeGoals;
     std::vector<RefVRP> vrpGoals;
     std::vector<Refq> qGoals;
     std::vector<RefContact> contactGoals;
+    Feasibility feasibility = Feasibility::INFEASIBLE;
 
-    void convertToIdl(actkin_stabilizer_msgs::RefStateIdl& m_refState);
+    void convertToIdl(actkin_stabilizer_msgs::RefStateIdl& m_refState) const;
   };
 };
 

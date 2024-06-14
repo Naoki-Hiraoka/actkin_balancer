@@ -104,8 +104,8 @@ namespace actkin_balancer{
     return;
   };
 
-  void State::onStartBalancer(){
-    return;
+  bool State::onStartBalancer(){
+    return true;
   }
 
   void State::updateRobotFromIdl(const RTC::TimedDoubleSeq& m_qAct, const RTC::TimedDoubleSeq& m_dqAct, const RTC::TimedPose3D& m_actBasePose, const RTC::TimedVelocity3D& m_actBaseVel, double dt) {

@@ -100,7 +100,7 @@ namespace actkin_balancer{
     void init(const cnoid::BodyPtr& robot_);
 
     // startBalancer時に呼ばれる
-    void onStartBalancer();
+    bool onStartBalancer();
 
     // MODE_ST中のみ呼ばれる
     void updateRobotFromIdl(const RTC::TimedDoubleSeq& m_qAct, const RTC::TimedDoubleSeq& m_dqAct, const RTC::TimedPose3D& m_actBasePose, const RTC::TimedVelocity3D& m_actBaseVel, double dt);

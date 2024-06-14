@@ -16,6 +16,7 @@
 #include "ActKinBalancerService_impl.h"
 #include "State.h"
 #include "Goal.h"
+#include "Output.h"
 #include "FootStepGenerator.h"
 
 class ActKinBalancer : public RTC::DataFlowComponentBase{
@@ -108,13 +109,17 @@ protected:
 
   actkin_balancer::State state_;
   actkin_balancer::Goal goal_;
+  actkin_balancer::Output output_;
   actkin_balancer::FootStepGenerator footStepGenerator_;
 protected:
+  // utility functions
+  bool getProperty(const std::string& key, std::string& ret);
+
   static bool readInPortDataForState(ActKinBalancer::Ports& ports, const std::string& instance_name, const double& dt,
                                      actkin_balancer::State& state);
   static bool readInPortDataForGoal(ActKinBalancer::Ports& ports, const std::string& instance_name, const double& dt, const actkin_balancer::State& state,
                                     actkin_balancer::Goal& goal);
-  static bool writeOutPortData(const actkin_balancer::State& state, const ActKinBalancer::ControlMode& mode,
+  static bool writeOutPortData(const actkin_balancer::State& state, const actkin_balancer::Output& output, const ActKinBalancer::ControlMode& mode,
                                ActKinBalancer::Ports& ports);
 };
 

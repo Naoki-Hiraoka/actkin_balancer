@@ -1,9 +1,9 @@
-#include "OutPut.h"
+#include "Output.h"
 #include <eigen_rtm_conversions/eigen_rtm_conversions.h>
 
 namespace actkin_balancer {
 
-  void Output::convertToIdl(actkin_stabilizer_msgs::RefStateIdl& m_refState){
+  void Output::convertToIdl(actkin_stabilizer_msgs::RefStateIdl& m_refState) const{
     m_refState.refEEPose.length(this->eeGoals.size());
     for(int i=0;i<this->eeGoals.size();i++){
       m_refState.refEEPose[i].name = this->eeGoals[i].name.c_str();
@@ -57,6 +57,11 @@ namespace actkin_balancer {
       eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].wrenchud, m_refState.refContact[i].wrenchud);
       eigen_rtm_conversions::poseEigenToRTM(this->contactGoals[i].localPose2, m_refState.refContact[i].localPose2);
     }
+
+    if(this->feasibility == Feasibility::FEASIBLE) m_refState.feasibility = actkin_stabilizer_msgs::FEASIBLE;
+    else if(this->feasibility == Feasibility::UNPREFERABLE) m_refState.feasibility = actkin_stabilizer_msgs::UNPREFERABLE;
+    else if(this->feasibility == Feasibility::POSTPONED) m_refState.feasibility = actkin_stabilizer_msgs::POSTPONED;
+    else m_refState.feasibility = actkin_stabilizer_msgs::INFEASIBLE;
 
     return;
   }

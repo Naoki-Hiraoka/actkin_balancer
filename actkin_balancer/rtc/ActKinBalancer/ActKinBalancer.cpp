@@ -1,4 +1,5 @@
 #include "ActKinBalancer.h"
+#include <cnoid/BodyLoader>
 
 ActKinBalancer::Ports::Ports() :
   m_qActIn_("qAct", m_qAct_),
@@ -39,6 +40,88 @@ ActKinBalancer::ActKinBalancer(RTC::Manager* manager):
 RTC::ReturnCode_t ActKinBalancer::onInitialize(){
   this->ports_.onInitialize(this);
 
+
+  {
+    // load robot model
+    cnoid::BodyPtr robot;
+    {
+      cnoid::BodyLoader bodyLoader;
+      std::string fileName; this->getProperty("model", fileName);
+      if (fileName.find("file://") == 0) fileName.erase(0, strlen("file://"));
+      robot = bodyLoader.load(fileName);
+      if(!robot){
+        std::cerr << "\x1b[31m[" << this->m_profile.instance_name << "] " << "failed to load model[" << fileName << "]" << "\x1b[39m" << std::endl;
+        return RTC::RTC_ERROR;
+      }
+      if(!robot->rootLink()->isFreeJoint()){
+        std::cerr << "\x1b[31m[" << this->m_profile.instance_name << "] " << "rootLink is not FreeJoint [" << fileName << "]" << "\x1b[39m" << std::endl;
+        return RTC::RTC_ERROR;
+      }
+    }
+
+    this->state_.init(robot);
+  }
+
+  {
+    // load end_effector
+    std::string endEffectors; this->getProperty("end_effectors", endEffectors);
+    std::stringstream ss_endEffectors(endEffectors);
+    std::string buf;
+    int leg = 0;
+    while(leg<2 && std::getline(ss_endEffectors, buf, ',')){
+      std::string name;
+      std::string parentLink;
+      cnoid::Vector3 localp;
+      cnoid::Vector3 localaxis;
+      double localangle;
+
+      //   name, parentLink(VRML joint name), (not used), x, y, z, theta, ax, ay, az
+      name = buf;
+      if(!std::getline(ss_endEffectors, buf, ',')) break; parentLink = buf;
+      if(!std::getline(ss_endEffectors, buf, ',')) break; // not used
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localp[0] = std::stod(buf);
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localp[1] = std::stod(buf);
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localp[2] = std::stod(buf);
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localaxis[0] = std::stod(buf);
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localaxis[1] = std::stod(buf);
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localaxis[2] = std::stod(buf);
+      if(!std::getline(ss_endEffectors, buf, ',')) break; localangle = std::stod(buf);
+
+      // check validity
+      name.erase(std::remove(name.begin(), name.end(), ' '), name.end()); // remove whitespace
+      parentLink.erase(std::remove(parentLink.begin(), parentLink.end(), ' '), parentLink.end()); // remove whitespace
+      if(!this->state_.robot->link(parentLink)){
+        std::cerr << "\x1b[31m[" << this->m_profile.instance_name << "] " << " link [" << parentLink << "]" << " is not found for " << name << "\x1b[39m" << std::endl;
+        return RTC::RTC_ERROR;
+      }
+      cnoid::Matrix3 localR;
+      if(localaxis.norm() == 0) localR = cnoid::Matrix3::Identity();
+      else localR = Eigen::AngleAxisd(localangle, localaxis.normalized()).toRotationMatrix();
+      cnoid::Isometry3 localT;
+      localT.translation() = localp;
+      localT.linear() = localR;
+
+      if(leg==actkin_balancer::RLEG && name != "rleg") {
+        std::cerr << "\x1b[31m[" << this->m_profile.instance_name << "] " << " eename " << name << " != \"rleg\"" << "\x1b[39m" << std::endl;
+        return RTC::RTC_ERROR;
+      }
+      if(leg==actkin_balancer::LLEG && name != "lleg") {
+        std::cerr << "\x1b[31m[" << this->m_profile.instance_name << "] " << " eename " << name << " != \"lleg\"" << "\x1b[39m" << std::endl;
+        return RTC::RTC_ERROR;
+      }
+      this->state_.ee[leg].name = name;
+      this->state_.ee[leg].parentLink = this->state_.robot->link(parentLink);
+      this->state_.ee[leg].localPose = localT;
+
+      leg++;
+    }
+    if(leg!=actkin_balancer::NUM_LEGS) {
+      std::cerr << "\x1b[31m[" << this->m_profile.instance_name << "] " << " ee < 2" << "\x1b[39m" << std::endl;
+      return RTC::RTC_ERROR;
+    }
+  }
+
+
   return RTC::RTC_OK;
 }
 
@@ -70,10 +153,9 @@ RTC::ReturnCode_t ActKinBalancer::onExecute(RTC::UniqueId ec_id){
   if(this->mode_.isABCRunning()){
     ActKinBalancer::readInPortDataForGoal(this->ports_, instance_name, dt, this->state_,
                                             this->goal_);
+    ActKinBalancer::writeOutPortData(this->state_, this->output_, this->mode_,
+                                     this->ports_);
   }
-
-  ActKinBalancer::writeOutPortData(this->state_, this->mode_,
-                                   this->ports_);
 
   return RTC::RTC_OK;
 }
@@ -122,21 +204,39 @@ bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const s
 }
 
 // static function
-bool ActKinBalancer::writeOutPortData(const actkin_balancer::State& state, const ActKinBalancer::ControlMode& mode,
-                                        ActKinBalancer::Ports& ports){
-  ports.m_outState_;
-  ports.m_outStateOut_.write();
+bool ActKinBalancer::writeOutPortData(const actkin_balancer::State& state, const actkin_balancer::Output& output, const ActKinBalancer::ControlMode& mode,
+                                      ActKinBalancer::Ports& ports){
+  if(mode.isABCRunning()){
+    output.convertToIdl(ports.m_outState_);
+    ports.m_outStateOut_.write();
+  }
   return true;
 }
 
 
 bool ActKinBalancer::startBalancer(){
-  std::lock_guard<std::mutex> guard(this->mutex_);
+  if(this->mode_.setNextTransition(ControlMode::START_ABC)){
+    std::cerr << "[" << m_profile.instance_name << "] start ABC" << std::endl;
+    while (this->mode_.now() != ControlMode::MODE_ABC) usleep(1000);
+    usleep(1000);
+    return true;
+  }else{
+    std::cerr << "[" << this->m_profile.instance_name << "] already started" << std::endl;
+    return false;
+  }
 
   return true;
 }
 bool ActKinBalancer::stopBalancer(){
-  std::lock_guard<std::mutex> guard(this->mutex_);
+  if(this->mode_.setNextTransition(ControlMode::STOP_ABC)){
+    std::cerr << "[" << m_profile.instance_name << "] stop ABC" << std::endl;
+    while (this->mode_.now() != ControlMode::MODE_IDLE) usleep(1000);
+    usleep(1000);
+    return true;
+  }else{
+    std::cerr << "[" << this->m_profile.instance_name << "] already stopped" << std::endl;
+    return false;
+  }
 
   return true;
 }
@@ -145,17 +245,6 @@ bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalance
   std::lock_guard<std::mutex> guard(this->mutex_);
   if(this->mode_.isABCRunning()) return true;
 
-  if(this->state_.linkNameMap.find(std::string(i_param.rlegLink)) != this->state_.linkNameMap.end()){
-    this->state_.ee[0].parentLink = this->state_.linkNameMap.find(std::string(i_param.rlegLink))->second;
-  }else{
-    std::cerr << "[" << m_profile.instance_name << "] "<< i_param.rlegLink << " not found" << std::endl;
-  }
-
-  if(this->state_.linkNameMap.find(std::string(i_param.llegLink)) != this->state_.linkNameMap.end()){
-    this->state_.ee[1].parentLink = this->state_.linkNameMap.find(std::string(i_param.llegLink))->second;
-  }else{
-    std::cerr << "[" << m_profile.instance_name << "] "<< i_param.llegLink << " not found" << std::endl;
-  }
   return true;
 }
 bool ActKinBalancer::getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
@@ -167,6 +256,18 @@ bool ActKinBalancer::setRefState(const actkin_balancer_msgs::RefStateIdl& i_para
   std::lock_guard<std::mutex> guard(this->mutex_);
   this->ports_.m_refState_ = i_param;
   this->ports_.m_refStateUpdatedByService_ = true;
+  return true;
+}
+
+bool ActKinBalancer::getProperty(const std::string& key, std::string& ret) {
+  if (this->getProperties().hasKey(key.c_str())) {
+    ret = std::string(this->getProperties()[key.c_str()]);
+  } else if (this->m_pManager->getConfig().hasKey(key.c_str())) { // 引数 -o で与えたプロパティを捕捉
+    ret = std::string(this->m_pManager->getConfig()[key.c_str()]);
+  } else {
+    return false;
+  }
+  std::cerr << "[" << this->m_profile.instance_name << "] " << key << ": " << ret <<std::endl;
   return true;
 }
 
