@@ -1,6 +1,10 @@
+#ifndef ActKinBalancerService_idl
+#define ActKinBalancerService_idl
+
 #include "BasicDataType.idl"
 
 #include "ExtendedDataTypes.idl"
+#include "actkin_balancer_msgs/idl/ActKinBalancer.idl"
 
 module actkin_balancer
 {
@@ -59,5 +63,8 @@ module actkin_balancer
     boolean setActKinBalancerParam(in ActKinBalancerParam i_param);
     boolean getActKinBalancerParam(out ActKinBalancerParam i_param);
 
+    boolean setRefState(in actkin_balancer_msgs::RefStateIdl i_param);
   };
 };
+
+#endif

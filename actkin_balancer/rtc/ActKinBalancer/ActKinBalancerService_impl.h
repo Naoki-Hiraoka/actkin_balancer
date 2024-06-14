@@ -19,6 +19,8 @@ public:
   CORBA::Boolean setActKinBalancerParam(const actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param);
   CORBA::Boolean getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam_out i_param);
 
+  CORBA::Boolean setRefState(const actkin_balancer_msgs::RefStateIdl& i_param);
+
   void setComp(ActKinBalancer *i_comp);
 private:
   ActKinBalancer *comp_;

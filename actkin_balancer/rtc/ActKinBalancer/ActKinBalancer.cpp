@@ -112,7 +112,11 @@ bool ActKinBalancer::readInPortDataForState(ActKinBalancer::Ports& ports, const 
 bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const std::string& instance_name, const double& dt, const actkin_balancer::State& state,
                                              actkin_balancer::Goal& goal){
 
-  while(ports.m_refStateIn_.isNew()) ports.m_refStateIn_.read();
+  if(ports.m_refStateIn_.isNew() || ports.m_refStateUpdatedByService_){
+    while(ports.m_refStateIn_.isNew()) ports.m_refStateIn_.read();
+    ports.m_refStateUpdatedByService_ = false;
+    goal.updateFromIdl(state, ports.m_refState_);
+  }
 
   return true;
 }
@@ -156,6 +160,13 @@ bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalance
 }
 bool ActKinBalancer::getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
   std::lock_guard<std::mutex> guard(this->mutex_);
+  return true;
+}
+
+bool ActKinBalancer::setRefState(const actkin_balancer_msgs::RefStateIdl& i_param) {
+  std::lock_guard<std::mutex> guard(this->mutex_);
+  this->ports_.m_refState_ = i_param;
+  this->ports_.m_refStateUpdatedByService_ = true;
   return true;
 }
 

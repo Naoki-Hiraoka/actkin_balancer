@@ -8,8 +8,10 @@
 namespace actkin_balancer{
   class RefRB {
   public:
-    std::vector<cpp_filters::TwoPointInterpolator<cnoid::Isometry3> > rb; // 必ずサイズは1以上
+    std::vector<cnoid::Isometry3> rb; // 必ずサイズは1以上. Z軸は鉛直
 
+    double xyGoalTorelance = 0.1;
+    double yawGoalTorelance = 0.1;
   public:
     static bool calcRBCoords(const State& state, cnoid::Isometry3& coords);
   };
@@ -31,7 +33,7 @@ namespace actkin_balancer{
     void updateFromIdl(const State& state, const actkin_balancer_msgs::RefRBIdl& m_refVRP);
 
     // MODE_ABC中のみ呼ばれる. 各goalをdtだけ補間する.
-    void interpolate(double dt);
+    void interpolate(const State& state, double dt);
 
   };
 

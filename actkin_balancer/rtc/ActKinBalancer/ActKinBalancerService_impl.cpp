@@ -30,6 +30,12 @@ CORBA::Boolean ActKinBalancerService_impl::getActKinBalancerParam(actkin_balance
   return this->comp_->getActKinBalancerParam(*i_param);
 };
 
+
+CORBA::Boolean ActKinBalancerService_impl::setRefState(const actkin_balancer_msgs::RefStateIdl& i_param)
+{
+  return this->comp_->setRefState(i_param);
+}
+
 void ActKinBalancerService_impl::setComp(ActKinBalancer *i_comp)
 {
   comp_ = i_comp;

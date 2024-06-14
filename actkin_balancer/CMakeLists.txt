@@ -7,9 +7,10 @@ set(CMAKE_BUILD_TYPE Release)
 find_package(catkin REQUIRED COMPONENTS
   rtmbuild2
   roscpp
+  actkin_balancer_msgs
   )
 
-rtmbuild2_init()
+rtmbuild2_init(rtmbuild2 actkin_balancer_msgs) # ここにidlとmsgが依存する外部パッケージを書く
 
 catkin_package(
   LIBRARIES ActKinBalancerServiceSkel ActKinBalancerServiceStub

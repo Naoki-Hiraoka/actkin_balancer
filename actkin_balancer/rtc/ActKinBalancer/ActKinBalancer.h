@@ -32,6 +32,8 @@ public:
   bool setActKinBalancerParam(const actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param);
   bool getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param);
 
+  bool setRefState(const actkin_balancer_msgs::RefStateIdl& i_param);
+
 protected:
   std::mutex mutex_;
 
@@ -56,6 +58,7 @@ protected:
 
     actkin_balancer_msgs::RefStateIdl m_refState_;
     RTC::InPort<actkin_balancer_msgs::RefStateIdl> m_refStateIn_;
+    bool m_refStateUpdatedByService_ = false;
 
     actkin_stabilizer_msgs::RefStateIdl m_outState_;
     RTC::OutPort<actkin_stabilizer_msgs::RefStateIdl> m_outStateOut_;

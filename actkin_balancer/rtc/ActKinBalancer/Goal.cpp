@@ -1,17 +1,20 @@
 #include "Goal.h"
+#include "MathUtil.h"
+#include <rtm_data_tools/rtm_data_tools.h>
+#include <eigen_rtm_conversions/eigen_rtm_conversions.h>
 
 namespace actkin_balancer{
-  bool Goal::calcRBCoords(const State& state, cnoid::Isometry3& coords) {
-    if(state.actContacts[RLEG] && state.actContacts[LLEG]) {
+  bool RefRB::calcRBCoords(const State& state, cnoid::Isometry3& coords) {
+    if(state.actContact[RLEG] && state.actContact[LLEG]) {
       coords = mathutil::orientCoordToAxis(mathutil::calcMidCoords(std::vector<cnoid::Isometry3>{state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose,state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose},
                                                                    std::vector<double>{0.5,0.5}),
                                            cnoid::Vector3::UnitZ());
       return true;
-    }else if(state.actContacts[RLEG]){
+    }else if(state.actContact[RLEG]){
       coords = mathutil::orientCoordToAxis(state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose,
                                            cnoid::Vector3::UnitZ());
       return true;
-    }else if(state.actContacts[LLEG]){
+    }else if(state.actContact[LLEG]){
       coords = mathutil::orientCoordToAxis(state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose,
                                            cnoid::Vector3::UnitZ());
       return true;
@@ -45,49 +48,36 @@ namespace actkin_balancer{
         rbGoal = std::make_shared<RefRB>();
       }
 
-      cnoid::Vector3 p; // world frame
-      cnoid::Vector3 dp; // world frame
-      cnoid::Vector3 ddp; // world frame
-      if(rbGoal->rb.size()>0){
-        rbGoal->rb[0].value(p,dp,ddp);
-      }else{ // 今回始めて現れたrb
-        p = state.robot->centerOfMass(); // ここから
-        dp = state.cogVel;//state.cogVel.value();
-        ddp.setZero();
-      }
-
       rbGoal->rb.clear();
       for(int j=0;j<m_refRB.trajectory.length();j++){
-        double time;
-        cnoid::Vector3 goal_p; // global frame
-        if(!std::isfinite(m_refRB.trajectory[j].time)){
-          std::cerr << __FUNCTION__ << " time is not finite!" << std::endl;
+        cnoid::Isometry3 goal; // global frame
+        if(!rtm_data_tools::isAllFinite(m_refRB.trajectory[j].pose)){
+          std::cerr << __FUNCTION__ << "rb not finite" << std::endl;
           continue;
         }
-        time = std::max(0.0, m_refRB.trajectory[j].time);
-        if(!rtm_data_tools::isAllFinite(m_refRB.trajectory[j].point)){
-          std::cerr << __FUNCTION__ << "point not finite" << std::endl;
-          continue;
-        }
-        eigen_rtm_conversions::pointRTMToEigen(m_refRB.trajectory[j].point, goal_p);
+        eigen_rtm_conversions::poseRTMToEigen(m_refRB.trajectory[j].pose, goal);
 
-        rbGoal->rb.emplace_back(p,dp,ddp,cpp_filters::LINEAR);
-        rbGoal->rb.back().setGoal(goal_p, time);
-
-        p = goal_p;
-        dp = cnoid::Vector3::Zero();
-        ddp = cnoid::Vector3::Zero();
+        rbGoal->rb.push_back(mathutil::orientCoordToAxis(goal,cnoid::Vector3::UnitZ()));
       }
 
-      if(rbGoal->rb.size() == 0) {
-        std::cerr << __FUNCTION__ << "trajectory is empty" << std::endl;
-        continue;
+      if(rbGoal->rb.size() != 0) {
+        nextRBGoals.push_back(rbGoal);
       }
-
-      nextRBGoals.push_back(rbGoal);
     }
 
     std::swap(this->rbGoals, nextRBGoals);
   }
 
+  void Goal::interpolate(const State& state, double dt) {
+    if(this->rbGoals.size() > 0 && this->rbGoals[0]->rb.size() >= 2){
+      cnoid::Isometry3 rbCoords;
+      if(RefRB::calcRBCoords(state,rbCoords)){
+        if((rbCoords.translation() - this->rbGoals[0]->rb[0].translation()).norm() <= this->rbGoals[0]->xyGoalTorelance &&
+           std::abs(cnoid::AngleAxisd(this->rbGoals[0]->rb[0].linear() * rbCoords.linear().transpose()).angle()) <= this->rbGoals[0]->yawGoalTorelance
+           ) {
+          this->rbGoals[0]->rb.erase(this->rbGoals[0]->rb.begin());
+        }
+      }
+    }
+  };
 };
