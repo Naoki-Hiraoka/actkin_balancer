@@ -456,7 +456,6 @@ namespace actkin_balancer{
 
     FootStepCandidate target = candidates[0];
 
-
     // これを求める
     // std::vector<cnoid::Isometry3> refCoords(NUM_LEGS);
     // std::vector<double> refCoordsTime(NUM_LEGS);
@@ -465,7 +464,6 @@ namespace actkin_balancer{
     // double nextFootOriginCoordsTime;
 
 
-    // 共通設定
     output.qGoals.clear();
     if(nominal.nominalq.rows() == state.robot->numJoints()){
       output.qGoals.resize(1);
@@ -475,18 +473,164 @@ namespace actkin_balancer{
       output.qGoals[0].trajectory[0].dq = cnoid::VectorX::Zero(state.robot->numJoints());
     }
     output.eeGoals.clear();
+    for(int leg=0;leg<NUM_LEGS;leg++){
+      output.eeGoals.resize(output.eeGoals.size()+1);
+      output.eeGoals.back().name = state.ee[leg].name;
+      output.eeGoals.back().link = state.ee[leg].parentLink;
+      output.eeGoals.back().localPose = state.ee[leg].localPose;
+      output.eeGoals.back().frameLink = "";
+      output.eeGoals.back().framePose.setIdentity();
+      for(int i=0;i<6;i++) output.eeGoals.back().freeAxis[i] = false;
+      output.eeGoals.back().priority = 1;
+
+      if(target.supportLeg == NUM_LEGS ||
+         target.supportLeg == leg
+         target.keepDouble){
+        output.eeGoals.back().trajectory.resize(1);
+        output.eeGoals.back().trajectory[0].time = 0.0;
+        output.eeGoals.back().trajectory[0].pose = legCoords[leg];
+      }else{
+        int supportLeg = leg == RLEG ? LLEG : RLEG;
+        std::vector<cnoid::Vector3> pathXY; // 支持脚相対
+        std::vector<double> time;
+        this->calcPath(leg, state, target.p,
+                       pathXY, time);
+
+        // 時間を指定の時間に引き伸ばす
+        if(time.back() == 0.0) {
+          time.back() = target.minTime;
+        }else{
+          double ratio = target.minTime / time.back();
+          for(int t=0;t<time.size();t++) time[t] *= ratio;
+        }
+
+        std::vector<cnoid::Isometry3> path; // world frame
+        for(int i=0;i<pathXY.size();i++){
+          cnoid::Isometry3 pose; // world frame
+          pose.translation() = legCoordsHorizontal[supportLeg] * pathXY[i];
+          pose.linear() = mathutil::calcMidRot(std::vector<Eigen::Matrix3d>{legCoords[leg], legCoordsHorizontal[supportLeg].linear() * Eigen::AngleAxisd(target.theta,cnoid::Vector3::UnitZ())},
+                                               std::vector<double>{time[i].back()-time[i],time[i]});
+          path.push_back(pose);
+        }
+
+        // delayTimeOffsetより手前を削除.
+        if(time.back() < state.ee[leg].delayTimeOffset){
+          path = std::vector<cnoid::Vector2>{path.back()};
+          time = std::vector<double>{state.ee[leg].delayTimeOffset};
+        }else{
+          cnoid::Isometry3 p; // world frame. delayTimeOffset後の位置
+          for(int i=0;i<path.size();i++){
+            if(time[i] >= state.ee[leg].delayTimeOffset){
+              cnoid::Isometry3 p0 = (i==0)? legCoords[leg] : pose[i-1];
+              double t0 = (i==0) ? 0.0 : time[i-1];
+              cnoid::Isometyr3 p1 = pose[i];
+              double t1 = time[i];
+              p = mathuti::calcMidRot(std::vector<Eigen::Matrix3d>{p0,p1},
+                                      std::vector<double>{t1-state.ee[leg].delayTimeOffset,state.ee[leg].delayTimeOffset-t0});
+              break;
+            }
+          }
+          while(time[0] < state.ee[leg].delayTimeOffset){
+            time.erase(time.begin());
+            path.erase(path.begin());
+          }
+          time.insert(time.begin(), state.ee[leg].delayTimeOffset);
+          path.insert(path.begin(), p);
+        }
+        output.eeGoals.back().trajectory.resize(path.size());
+        for(int i=0;i<path.size();i++){
+          output.eeGoals.back().trajectory[i].time = time[i];
+          output.eeGoals.back().trajectory[i].pose = path[i];
+        }
+      }
+    }
     for(int i=0;i<nominal.nominalEE.size();i++){
       output.eeGoals.resize(output.eeGoals.size()+1);
-      output.eeGoals[i].name = nominal.nominalEE[i].name;
-      output.eeGoals[i].link = nominal.nominalEE[i].link;
-      output.eeGoals[i].localPose = nominal.nominalEE[i].localPose;
-      output.eeGoals[i].frameLink = nominal.nominalEE[i].frameLink;
-      output.eeGoals[i].framePose = nominal.nominalEE[i].framePose;
-      output.eeGoals[i].trajectory.resize(1);
-      output.eeGoals[i].trajectory[0].time = nominal.nominalEE[i].time; // TODO foot origin相対
-      output.eeGoals[i].trajectory[0].pose = nominal.nominalEE[i].pose; // TODO foot origin相対
-      output.eeGoals[i].freeAxis = nominal.nominalEE[i].freeAxis;
-      output.eeGoals[i].priority = nominal.nominalEE[i].priority;
+      output.eeGoals.back().name = nominal.nominalEE[i].name;
+      output.eeGoals.back().link = nominal.nominalEE[i].link;
+      output.eeGoals.back().localPose = nominal.nominalEE[i].localPose;
+      output.eeGoals.back().frameLink = nominal.nominalEE[i].frameLink;
+      output.eeGoals.back().framePose = nominal.nominalEE[i].framePose;
+      output.eeGoals.back().freeAxis = nominal.nominalEE[i].freeAxis;
+      output.eeGoals.back().priority = nominal.nominalEE[i].priority;
+
+      if(nominal.nominalEE[i].frameLink != ""){
+        output.eeGoals.back().trajectory.resize(1);
+        output.eeGoals.back().trajectory[0].time = nominal.nominalEE[i].time;
+        output.eeGoals.back().trajectory[0].pose = nominal.nominalEE[i].pose;
+      }else{
+        // foot origin相対
+        output.eeGoals.back().trajectory.resize(1);
+        double time;
+        cnoid::Isometry3 footOrigin; // world系
+        if(target.supportLeg == NUM_LEGS ||
+           target.keepDouble){
+          time = 0.0;
+          footOrigin = mathutil::orientCoordsToAxis(mathutil::calcMidCoords(legCoords,std::vector<double>{0.5,0.5}),cnoid::Vector3::UnitZ());
+        }else{
+          time = target.minTime;
+          int swingLeg = target.supportLeg == RLEG ? LLEG : RLEG;
+          cnoid::Isometry3 targetPose;
+          targetPose.translation() = legCoordsHorizontal[target.supportLeg] * target.p;
+          targetPose.linear() = legCoordsHorizontal[target.supportLeg].linear() * cnoid::AngleAxisd(target.theta, cnoid::Vector3::UnitZ());
+          footOrigin = mathutil::orientCoordsToAxis(mathutil::calcMidCoords(std::vector<cnoid::Isometry3>{legCoords[target.supportLeg],targetPose},
+                                                                            std::vector<double>{0.5,0.5}),cnoid::Vector3::UnitZ());
+        }
+        output.eeGoals.back().trajectory[0].time = time + nominal.nominalEE[i].time;
+        output.eeGoals.back().trajectory[0].pose = footOrigin * nominal.nominalEE[i].pose;
+      }
+    }
+
+    output.vrpGoals.clear();
+    output.vrpGoals.resize(1);
+    output.vrpGoals[0].omega = nominal.omega;
+    if(target.supportLeg == NUM_LEGS) {
+      output.vrpGoals[0].trajectory.resize(1);
+      output.vrpGoals[0].trajectory[0].time = 0.0;
+      cnoid::Vector3 p = mathutil::calcMidPos(std::vector<cnoid::Vector3>{legCoords[RLEG].translation(),legCoords[LLEG].translation()},
+                                              std::vector<double>{0.5,0.5});
+      p[2] += nominal.omega;
+      output.vrpGoals[0].trajectory[0].point = p;
+    }else if(target.keepDouble){
+      output.vrpGoals[0].trajectory.resize(1);
+      output.vrpGoals[0].trajectory[0].time = 0.0;
+      cnoid::Vector3 p = legCoords[target.supportLeg].translation();
+      p[2] += nominal.omega;
+      output.vrpGoals[0].trajectory[0].point = p;
+    }else{
+      int swingLeg = target.supportLeg == RLEG ? LLEG : RLEG;
+      cnoid::Isometry3 targetPose;
+      targetPose.translation() = legCoordsHorizontal[target.supportLeg] * target.p;
+      targetPose.linear() = legCoordsHorizontal[target.supportLeg].linear() * cnoid::AngleAxisd(target.theta, cnoid::Vector3::UnitZ());
+
+      output.vrpGoals[0].trajectory.resize(3);
+      output.vrpGoals[0].trajectory[0].time = 0.0;
+      cnoid::Vector3 p = legCoords[target.supportLeg].translation();
+      p[2] += nominal.omega;
+      output.vrpGoals[0].trajectory[0].point = p;
+      output.vrpGoals[0].trajectory[1].time = target.minTime;
+      output.vrpGoals[0].trajectory[1].point = p;
+      output.vrpGoals[0].trajectory[2].time = target.minTime;
+      cnoid::Vector3 p = targetPose.translation();
+      p[2] += nominal.omega;
+      output.vrpGoals[0].trajectory[2].point = p;
+    }
+
+    output.contactGoals.clear();
+    for(int leg=0;leg<NUM_LEGS;leg++){
+      bool contact = false;
+      if(target.supportLeg == NUM_LEGS ||
+         target.supportLeg == leg ||
+         target.keepDouble) {
+        contact = true;
+      }else{
+        int swingLeg = target.supportLeg == RLEG ? LLEG : RLEG;
+        cnoid::Vector3 targetPos = legCoordsHorizontal[target.supportLeg] * target.p;
+        
+      }
+
+      output.contactGoals.resize(output.contactGoals.size()+1);
+      output.contactGoals.back().name = 
     }
 
   }
@@ -561,7 +705,7 @@ namespace actkin_balancer{
   }
 
 
-  void FootStepGenerator::calcPath(int swingLeg, const State& state, const cnoid::Vector3& target,
+  void FootStepGenerator::calcPath(int swingLeg, const State& state, const cnoid::Isometry3& target,
                                    std::vector<cnoid::Vector3>& path, std::vector<double>& time) const{
     path.clear();
     time.clear(); // time from start
@@ -570,10 +714,19 @@ namespace actkin_balancer{
 
     cnoid::Vector3 p = legCoords[swingLeg].translation();
     double t = 0.0;
-    if((target.head<2>() - legCoords[swingLeg].translation().head<2>()).norm() > state.ee[swingLeg].liftThre){
+
+    bool aboveTarget = true;
+    if((target.translation().head<2>() - legCoords[swingLeg].translation().head<2>()).norm() > state.ee[swingLeg].liftXYThre2) aboveTarget = false;
+    else if((target.translation().head<2>() - legCoords[swingLeg].translation().head<2>()).norm() <= state.ee[swingLeg].liftXYThre1) aboveTarget = true;
+    else{
+      if((target.translation().head<2>() - legCoords[swingLeg].translation().head<2>()).norm() <= (legCoords[swingLeg].translation()[2] - target.translation()[2]) * state.ee[swingLeg].liftRatioThre) aboveTarget = true;
+      else aboveTarget = false;
+    }
+
+    if(!aboveTarget){
       // goalの上空heightのZよりも低い位置にいるなら上昇
       {
-        double reqZ = target[2] + state.ee[swingLeg].stepHeight;
+        double reqZ = target.translation()[2] + state.ee[swingLeg].stepHeight;
         if(p[2] < reqZ){
           t += (reqZ - p[2]) / state.ee[swingLeg].maxSwingLiftVelocity;
           p[2] = reqZ;
@@ -596,7 +749,7 @@ namespace actkin_balancer{
     }
     // goal上空へ水平移動
     {
-      Eigen::Vector2d reqXY = target.head<2>();
+      Eigen::Vector2d reqXY = target.translation().head<2>();
       t += (reqXY - p.head<2>()).norm() / state.ee[swingLeg].maxSwingXYVelocity;
       p.head<2>() = reqXY;
 
@@ -605,7 +758,7 @@ namespace actkin_balancer{
     }
     // goalへ上下移動
     {
-      double reqZ = target[2] + state.ee[swingLeg].goalOffset;
+      double reqZ = target.translation()[2] + state.ee[swingLeg].goalOffset;
       t += std::abs(reqZ - p[2]) / state.ee[swingLeg].maxSwingLandVelocity;
       p[2] = reqZ;
 
