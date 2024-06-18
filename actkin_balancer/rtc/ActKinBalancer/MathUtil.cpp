@@ -1,6 +1,8 @@
 #include "MathUtil.h"
 
 #include <opencv2/imgproc.hpp>
+#include <limits>
+
 
 namespace actkin_balancer {
   namespace mathutil {
@@ -73,8 +75,10 @@ namespace actkin_balancer {
     }
 
     void calcConvexHull(const std::vector<Eigen::Vector2d>& contours, std::vector<Eigen::Vector2d>& hull) {
-      hull.clear();
-      if(contours.size()==0) return;
+      if(contours.size()==0) {
+        hull.clear();
+        return;
+      }
 
       std::vector<cv::Point2d> contours_;
       for(int i=0;i<contours.size();i++){
@@ -83,9 +87,111 @@ namespace actkin_balancer {
 
       std::vector<cv::Point2d> hull_;
       cv::convexHull(contours_, hull_);
+
+      hull.clear();
       for(int i=0;i<hull_.size();i++){
         hull.emplace_back(hull_[i].x,hull_[i].y);
       }
+    }
+
+    std::vector<Eigen::Vector2d> calcIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q) {
+      if(P.size() == 0 || Q.size() == 0) return std::vector<Eigen::Vector2d>();
+
+      std::vector<cv::Point2d> P_;
+      for(int i=0;i<P.size();i++) P_.emplace_back(P[i][0],P[i][1]);
+      std::vector<cv::Point2d> Q_;
+      for(int i=0;i<Q.size();i++) Q_.emplace_back(Q[i][0],Q[i][1]);
+
+      if(P_.size() == 1){
+        if(cv::pointPolygonTest(Q_,P_[0],false) >= 0.0) return P;
+        else return std::vector<Eigen::Vector2d>();
+      }
+      if(Q_.size() == 1){
+        if(cv::pointPolygonTest(P_,Q_[0],false) >= 0.0) return Q;
+        else return std::vector<Eigen::Vector2d>();
+      }
+
+      std::vector<cv::Point2d> ret_;
+      cv::intersectConvexConvex(P_,Q_,ret_,true);
+
+      std::vector<Eigen::Vector2d> ret;
+      for(int i=0;i<ret.size();i++) ret.emplace_back(ret_[i].x,ret_[i].y);
+      return ret;
+    }
+
+    bool isInsideHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours) {
+      if(contours.size()==0) {
+        return false;
+      }
+
+      std::vector<cv::Point2d> contours_;
+      for(int i=0;i<contours.size();i++){
+        contours_.emplace_back(contours[i][0],contours[i][1]);
+      }
+
+      cv::Point2d pt(p[0],p[1]);
+      double result = cv::pointPolygonTest(contours_,pt,false);
+      return result >= 0.0;
+    }
+
+    Eigen::Vector2d calcNearestPointOfHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours){
+      if(contours.size() == 0)  return p;
+      if(contours.size() == 1) return contours[0];
+
+      std::vector<cv::Point2d> contours_;
+      for(int i=0;i<contours.size();i++){
+        contours_.emplace_back(contours[i][0],contours[i][1]);
+      }
+
+      cv::Point2d p_(p[0],p[1]);
+      double result = cv::pointPolygonTest(contours_,p_,false);
+
+      if(result >= 0.0) return p; // p is inside contours
+
+      double minDistance = std::numeric_limits<double>::max();
+      Eigen::Vector2d nearestPoint;
+      for (int i = 0; i < contours.size(); i++) {
+        const Eigen::Vector2d& p1 = contours[i], p2 = contours[(i+1)%contours.size()];
+        double dot = (p2 - p1).dot(p - p1);
+        if(dot <= 0) { // p1が近い
+          double distance = (p - p1).norm();
+          if(distance < minDistance){
+            minDistance = distance;
+            nearestPoint = p1;
+          }
+        }else if(dot >= (p2 - p1).squaredNorm()) { // p2が近い
+          double distance = (p - p2).norm();
+          if(distance < minDistance){
+            minDistance = distance;
+            nearestPoint = p2;
+          }
+        }else { // 直線p1 p2におろした垂線の足が近い
+          Eigen::Vector2d p1Top2 = (p2 - p1).normalized();
+          Eigen::Vector2d p3 = p1 + (p - p1).dot(p1Top2) * p1Top2;
+          double distance = (p - p3).norm();
+          if(distance < minDistance){
+            minDistance = distance;
+            nearestPoint = p3;
+          }
+        }
+      }
+      return nearestPoint;
+    }
+
+    double findExtremes(const std::vector<Eigen::Vector2d> vertices, const Eigen::Vector2d& dir, std::vector<Eigen::Vector2d>& ret) {
+      ret.clear();
+      double maxValue = - std::numeric_limits<double>::max();
+      for(int i=0;i<vertices.size();i++){
+        double value = vertices[i].dot(dir);
+        if(value > maxValue + 1e-4){
+          ret.clear();
+          ret.push_back(vertices[i]);
+          maxValue = value;
+        }else if(value >= maxValue - 1e-4 && value <= maxValue + 1e-4){
+          ret.push_back(vertices[i]);
+        }
+      }
+      return maxValue;
     }
   };
 };

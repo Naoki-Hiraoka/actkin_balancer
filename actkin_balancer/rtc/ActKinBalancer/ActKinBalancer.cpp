@@ -145,14 +145,15 @@ RTC::ReturnCode_t ActKinBalancer::onExecute(RTC::UniqueId ec_id){
     this->state_.onStartBalancer();
   }
 
-  if(!ActKinBalancer::readInPortDataForState(this->ports_, instance_name, dt,
-                                               this->state_)){
-    return RTC::RTC_OK;  // qAct が届かなければ何もしない
-  }
-
   if(this->mode_.isABCRunning()){
+    if(!ActKinBalancer::readInPortDataForState(this->ports_, instance_name, dt,
+                                               this->state_)){
+      return RTC::RTC_OK;  // qAct が届かなければ何もしない
+    }
     ActKinBalancer::readInPortDataForGoal(this->ports_, instance_name, dt, this->state_,
                                             this->goal_);
+    this->footStepGenerator_.calcFootSteps(this->state_, this->goal_, instance_name, dt,
+                                           this->output_);
     ActKinBalancer::writeOutPortData(this->state_, this->output_, this->mode_,
                                      this->ports_);
   }

@@ -29,10 +29,10 @@ namespace actkin_balancer{
       this->wrenchC(idx,1) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
       this->wrenchC(idx,1) = -1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
       for(int j=0;j<this->hull.size();j++){
-        cnoid::Vector3 v1 = this->hull[j]; // EEF frame/origin
-        cnoid::Vector3 v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
+        Eigen::Vector2d v1 = this->hull[j]; // EEF frame/origin
+        Eigen::Vector2d v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
         if(v1.head<2>() == v2.head<2>()) continue;
-        cnoid::Vector3 r = cnoid::Vector3(v2[1]-v1[1],v1[0]-v2[0],0).normalized();
+        Eigen::Vector2d r = Eigen::Vector2d(v2[1]-v1[1],v1[0]-v2[0]).normalized();
         double d = r.dot(v1);
         this->wrenchC(idx,2) = d; this->wrenchC(idx,3) = -r[1]; this->wrenchC(idx,4) = r[0]; idx++;
       }
@@ -49,10 +49,10 @@ namespace actkin_balancer{
       int idx=0;
       this->region.C(idx,2) = 1.0; this->region.ld[idx] = -this->regionMargin; this->region.ud[idx] = this->regionMargin;
       for(int j=0;j<this->hull.size();j++){
-        cnoid::Vector3 v1 = this->hull[j]; // EEF frame/origin
-        cnoid::Vector3 v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
+        Eigen::Vector2d v1 = this->hull[j]; // EEF frame/origin
+        Eigen::Vector2d v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
         if(v1.head<2>() == v2.head<2>()) continue;
-        cnoid::Vector3 r = cnoid::Vector3(v2[1]-v1[1],v1[0]-v2[0],0).normalized();
+        Eigen::Vector2d r = Eigen::Vector2d(v2[1]-v1[1],v1[0]-v2[0]).normalized();
         double d = r.dot(v1);
         this->region.C(idx,0) = r[0]; this->region.C(idx,1) = r[1]; this->region.ud[idx] = d; idx++;
       }
@@ -199,7 +199,7 @@ namespace actkin_balancer{
         if( ((this->contacts[i]->link1 == this->ee[LEG].parentLink) && (this->contacts[i]->link2 == nullptr)) ||
             ((this->contacts[i]->link1 == nullptr) && (this->contacts[i]->link2 == this->ee[LEG].parentLink)) ) {
           cnoid::Vector3 value = this->ee[LEG].region.C * (poseInv * (this->contacts[i]->link1 ? this->contacts[i]->link1->T() * this->contacts[i]->localPose1.translation() : this->contacts[i]->localPose1.translation()));
-          // TODO 法線方向のチェック
+          // TODO 法線方向のチェック. 重心より高いかチェック
           if( ((value - this->ee[LEG].region.ld).array() >= 0.0).all() &&
               ((this->ee[LEG].region.ud - value).array() >= 0.0).all() ){
             this->actContact[LEG] = true;

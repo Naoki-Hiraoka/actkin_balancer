@@ -14,6 +14,7 @@ namespace actkin_balancer{
     double yawGoalTorelance = 0.1;
   public:
     static bool calcRBCoords(const State& state, cnoid::Isometry3& coords);
+    bool isSatisfied(const State& state) const;
   };
 
   class Goal {

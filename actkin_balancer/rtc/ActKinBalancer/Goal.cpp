@@ -13,14 +13,28 @@ namespace actkin_balancer{
     }else if(state.actContact[RLEG]){
       coords = mathutil::orientCoordToAxis(state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose,
                                            cnoid::Vector3::UnitZ());
+      coords.translation() -= coords.linear() * state.ee[RLEG].defaultTranslatePos;
       return true;
     }else if(state.actContact[LLEG]){
       coords = mathutil::orientCoordToAxis(state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose,
                                            cnoid::Vector3::UnitZ());
+      coords.translation() -= coords.linear() * state.ee[LLEG].defaultTranslatePos;
       return true;
     }else{
       return false;
     }
+  }
+
+  bool RefRB::isSatisfied(const State& state) const {
+    cnoid::Isometry3 rbCoords;
+    if(RefRB::calcRBCoords(state,rbCoords)){
+      if((rbCoords.translation() - this->rb[0].translation()).norm() <= this->xyGoalTorelance &&
+         std::abs(cnoid::AngleAxisd(this->rb[0].linear() * rbCoords.linear().transpose()).angle()) <= this->yawGoalTorelance
+         ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void Goal::init(const State& state){
@@ -69,15 +83,8 @@ namespace actkin_balancer{
   }
 
   void Goal::interpolate(const State& state, double dt) {
-    if(this->rbGoals.size() > 0 && this->rbGoals[0]->rb.size() >= 2){
-      cnoid::Isometry3 rbCoords;
-      if(RefRB::calcRBCoords(state,rbCoords)){
-        if((rbCoords.translation() - this->rbGoals[0]->rb[0].translation()).norm() <= this->rbGoals[0]->xyGoalTorelance &&
-           std::abs(cnoid::AngleAxisd(this->rbGoals[0]->rb[0].linear() * rbCoords.linear().transpose()).angle()) <= this->rbGoals[0]->yawGoalTorelance
-           ) {
-          this->rbGoals[0]->rb.erase(this->rbGoals[0]->rb.begin());
-        }
-      }
+    while(this->rbGoals.size() > 0 && this->rbGoals[0]->rb.size() >= 2 && this->rbGoals[0]->isSatisfied(state)){
+      this->rbGoals[0]->rb.erase(this->rbGoals[0]->rb.begin());
     }
   };
 };
