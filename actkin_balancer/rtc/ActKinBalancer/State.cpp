@@ -85,27 +85,61 @@ namespace actkin_balancer{
     }
   }
 
-  void NominalEE::updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl){
+  bool NominalEE::updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl){
     this->name = std::string(idl.name);
     if(state.nameLinkMap.find(std::string(idl.link)) == state.nameLinkMap.end()){
       std::cerr << idl.link << " not found" << std::endl;
       return false;
     }
-    this->link = state.nameLinkMap[std::string(idl.link)];
+    this->link = state.nameLinkMap.find(std::string(idl.link))->second;
+    eigen_rtm_conversions::poseRTMToEigen(idl.localPose, this->localPose);
+    if(state.nameLinkMap.find(std::string(idl.frameId)) == state.nameLinkMap.end()){
+      std::cerr << idl.frameId << " not found" << std::endl;
+      return false;
+    }
+    this->frameLink = state.nameLinkMap.find(std::string(idl.frameId))->second;
+    eigen_rtm_conversions::poseRTMToEigen(idl.framePose, this->framePose);
+    this->time = std::max(0.0, idl.time);
+    eigen_rtm_conversions::poseRTMToEigen(idl.pose, this->pose);
+    for(int i=0;i<6;i++) this->freeAxis[i] = idl.freeAxis[i];
+    this->priority = idl.priority;
 
     return true;
   }
 
-  void NoinalEE::convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalEEIdl& idl) {
+  void NominalEE::convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalEEIdl& idl) {
     idl.name = this->name.c_str();
-    idl.link = state.linkNameMap[this->link].c_str();
+    idl.link = state.linkNameMap.find(this->link)->second.c_str();
     eigen_rtm_conversions::poseEigenToRTM(this->localPose,idl.localPose);
-    idl.frameId = state.linkNameMap[this->frameLink].c_str();
+    idl.frameId = state.linkNameMap.find(this->frameLink)->second.c_str();
     eigen_rtm_conversions::poseEigenToRTM(this->framePose,idl.framePose);
     idl.time = this->time;
     eigen_rtm_conversions::poseEigenToRTM(this->pose,idl.pose);
     for(int i=0;i<6;i++) idl.freeAxis[i] = this->freeAxis[i];
     idl.priority = this->priority;
+  }
+
+  bool NominalInfo::updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalIdl& idl) {
+    this->nominalqTime = std::max(0.0, idl.nominalqTime);
+    eigen_rtm_conversions::vectorRTMToEigen(idl.nominalq, this->nominalq);
+    this->nominalEE.clear();
+    for(int i=0;i<idl.nominalEE.length();i++){
+      NominalEE nominalEE_;
+      if(nominalEE_.updateFromIdl(state, idl.nominalEE[i])){
+        this->nominalEE.push_back(nominalEE_);
+      }
+    }
+    this->nominalZ = std::max(0.01, idl.nominalZ);
+    return true;
+  }
+  void NominalInfo::convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalIdl& idl) {
+    idl.nominalqTime = this->nominalqTime;
+    eigen_rtm_conversions::vectorEigenToRTM(this->nominalq, idl.nominalq);
+    idl.nominalEE.length(this->nominalEE.size());
+    for(int i=0;i<this->nominalEE.size();i++){
+      this->nominalEE[i].convertToIdl(state, idl.nominalEE[i]);
+    }
+    idl.nominalZ = this->nominalZ;
   }
 
   void State::init(const cnoid::BodyPtr& robot_){
@@ -195,21 +229,21 @@ namespace actkin_balancer{
     int numContact= 0;
     for(int i=0;i<m_actContactState.data.length();i++){
       if(!this->contacts[numContact]) this->contacts[numContact] = std::make_shared<Contact>();
-      if(this->linkNameMap.find(std::string(m_actContactState.data[i].link1)) == this->linkNameMap.end()){
+      if(this->nameLinkMap.find(std::string(m_actContactState.data[i].link1)) == this->nameLinkMap.end()){
         std::cerr << __FUNCTION__ << m_actContactState.data[i].link1 << " not found" << std::endl;
         continue;
       }
-      this->contacts[numContact]->link1 = this->linkNameMap[std::string(m_actContactState.data[i].link1)];
+      this->contacts[numContact]->link1 = this->nameLinkMap[std::string(m_actContactState.data[i].link1)];
       if(!rtm_data_tools::isAllFinite(m_actContactState.data[i].local_pose)){
         std::cerr << __FUNCTION__ << "local_pose not finite" << std::endl;
         continue;
       }
       eigen_rtm_conversions::poseRTMToEigen(m_actContactState.data[i].local_pose, this->contacts[numContact]->localPose1);
-      if(this->linkNameMap.find(std::string(m_actContactState.data[i].link2)) == this->linkNameMap.end()){
+      if(this->nameLinkMap.find(std::string(m_actContactState.data[i].link2)) == this->nameLinkMap.end()){
         std::cerr << __FUNCTION__ << m_actContactState.data[i].link2 << " not found" << std::endl;
         continue;
       }
-      this->contacts[numContact]->link2 = this->linkNameMap[std::string(m_actContactState.data[i].link2)];
+      this->contacts[numContact]->link2 = this->nameLinkMap[std::string(m_actContactState.data[i].link2)];
       this->contacts[numContact]->freeX = m_actContactState.data[i].free_x;
       this->contacts[numContact]->freeY = m_actContactState.data[i].free_y;
       numContact++;

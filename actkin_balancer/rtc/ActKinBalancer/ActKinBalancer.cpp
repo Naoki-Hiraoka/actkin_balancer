@@ -1,5 +1,6 @@
 #include "ActKinBalancer.h"
 #include <cnoid/BodyLoader>
+#include <eigen_rtm_conversions/eigen_rtm_conversions.h>
 
 ActKinBalancer::Ports::Ports() :
   m_qActIn_("qAct", m_qAct_),
@@ -246,18 +247,31 @@ bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalance
   std::lock_guard<std::mutex> guard(this->mutex_);
   if(this->mode_.isABCRunning()) return true;
 
-  
+  if(this->state_.nameLinkMap.find(std::string(i_param.rlegLink)) == this->state_.nameLinkMap.end()){
+    std::cerr << "[" << this->m_profile.instance_name << "] " << i_param.rlegLink << " not found" << std::endl;
+  }else{
+    this->state_.ee[actkin_balancer::RLEG].parentLink = this->state_.nameLinkMap[std::string(i_param.rlegLink)];
+  }
+  if(this->state_.nameLinkMap.find(std::string(i_param.llegLink)) == this->state_.nameLinkMap.end()){
+    std::cerr << "[" << this->m_profile.instance_name << "] " << i_param.llegLink << " not found" << std::endl;
+  }else{
+    this->state_.ee[actkin_balancer::LLEG].parentLink = this->state_.nameLinkMap[std::string(i_param.llegLink)];
+  }
+  this->state_.nominal.updateFromIdl(this->state_, i_param.nominal);
+  eigen_rtm_conversions::poseRTMToEigen(i_param.localPose, this->state_.ee[actkin_balancer::RLEG].localPose);
+
+  this->state_.ee[actkin_balancer::RLEG].updateFromHull();
+  this->state_.ee[actkin_balancer::RLEG].flipY(this->state_.ee[actkin_balancer::LLEG]);
 
   return true;
 }
 bool ActKinBalancer::getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
   std::lock_guard<std::mutex> guard(this->mutex_);
 
-  i_param.rlegLink = state.linkNameMap[state.ee[actkin_balancer::RLEG].parentLink].c_str();
-  i_param.llegLink = state.linkNameMap[state.ee[actkin_balancer::LLEG].parentLink].c_str();
-  i_param.nominalqTime = state.nominal.nominalqTime;
-  eigen_rtm_conversions::vectorEigenToRTM(state.nominal.nominalq, i_param.nominalq);
-  i_param.nominalEE.length(state.nominal.nominalEE.size();
+  i_param.rlegLink = this->state_.linkNameMap[this->state_.ee[actkin_balancer::RLEG].parentLink].c_str();
+  i_param.llegLink = this->state_.linkNameMap[this->state_.ee[actkin_balancer::LLEG].parentLink].c_str();
+  this->state_.nominal.convertToIdl(this->state_, i_param.nominal);
+  eigen_rtm_conversions::poseEigenToRTM(this->state_.ee[actkin_balancer::RLEG].localPose, i_param.localPose);
 
   return true;
 }

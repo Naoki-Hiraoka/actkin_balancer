@@ -28,21 +28,25 @@ module actkin_balancer
       long priority; // 分解加速度制御の優先度. 0 or 1. 0なら普通. 1は重心と同じ. default 1.
     };
 
+    struct NominalIdl {
+      double nominalqTime;
+      sequence<double> nominalq; // 要素数と順番はrobot->numJointsと同じ
+      sequence<NominalEEIdl> nominalEE;
+      double nominalZ; // foot origin local. cog Z
+    };
+
     struct ActKinBalancerParam
     {
       // 能動的接触可能点. 右足の情報のみを与えて、自動的にY反転する.
       string rlegLink; // URDF link name.
       string llegLink; // URDF link name.
 
-      double nominalqTime;
-      sequence<double> nominalq; // 要素数と順番はrobot->numJointsと同じ
-      sequence<NominalEEIdl> nominalEE;
-      double nominalZ; // foot origin local. cog Z
+      NominalIdl nominal;
 
       // for rleg parameter
-      RTC::Pose3D eeLocalPose; // link local
-      sequence<double, 2> eeHull; /// localPose frame. 単位[m]. 干渉計算に使用される. また、この値を用いて出力のregionやwrenchCが生成される.
-      sequence<double, 2> eeSafeHull; /// localPose frame. 単位[m]. COPの存在可能領域. eeHull以下にすること
+      RTC::Pose3D localPose; // link local
+      sequence<double, 2> hull; /// localPose frame. 単位[m]. 干渉計算に使用される. また、この値を用いて出力のregionやwrenchCが生成される.
+      sequence<double, 2> safeHull; /// localPose frame. 単位[m]. COPの存在可能領域. eeHull以下にすること
 
     };
 

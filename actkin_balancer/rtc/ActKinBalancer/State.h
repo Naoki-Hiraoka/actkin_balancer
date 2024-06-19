@@ -12,6 +12,8 @@ namespace actkin_balancer{
   static const int RLEG = 0;
   static const int LLEG = 1;
 
+  class State;
+
   class Region3D {
   public:
     Eigen::MatrixXd C = Eigen::MatrixXd::Identity(3,3);
@@ -104,8 +106,8 @@ namespace actkin_balancer{
     std::vector<NominalEE> nominalEE;
     double nominalZ = 1.0;
 
-    bool updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);
-    void convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);
+    bool updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalIdl& idl);
+    void convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalIdl& idl);
   };
 
 
