@@ -2,6 +2,7 @@
 #define ACTKINBALANCER_STATE_H
 
 #include <contact_state_msgs/idl/ContactState.hh>
+#include <actkin_balancer/idl/ActKinBalancerService.hh>
 #include <unordered_map>
 #include <memory>
 #include <cnoid/Body>
@@ -38,7 +39,6 @@ namespace actkin_balancer{
     std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.075,0.055),Eigen::Vector2d(-0.075,0.055),Eigen::Vector2d(-0.075,-0.055),Eigen::Vector2d(0.075,-0.055)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下
 
     // stride parameters
-    double defaultDoubleSupportRatio = 0.15; // defaultStepTimeのうちの、両足支持期の時間の割合. 0より大きく1未満
     cnoid::Vector3 defaultTranslatePos = cnoid::Vector3{0.0,-0.1,0.0}; // 右脚と左脚の中心からの右脚の相対位置.([m]). Z座標は0でなければならない.
     std::vector<Eigen::Vector2d> defaultStrideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.15,-0.18),Eigen::Vector2d(-0.15,-0.18),Eigen::Vector2d(-0.15,-0.35),Eigen::Vector2d(0.15,-0.35)}; // 単位[m]. defaultのfootstepの、遊脚のエンドエフェクタの着地位置の範囲の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はlegHullとlegCollisionMarginを用いて別で評価されるので、defaultStrideLimitationHullでは考慮しなくて良い. 左右方向にsteppable regionをまたぐ場合は、これのY成分が大きくないと後ろ足がまたげない
     double defaultSwingVelocityRatio = 0.5; // 0~1. maxSwingVelocityの何倍か
@@ -53,7 +53,7 @@ namespace actkin_balancer{
     double collisionMargin = 0.02; // [m]. 左右の足のhullがこの距離以上離れるようにする. 0以上.
     double maxLandingHeight = 0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの上限(自己干渉やIKの考慮が含まれる).
     double minLandingHeight = -0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの下限(自己干渉やIKの考慮が含まれる).
-    double goalOffset = -0.02; // [m]. 遊脚軌道生成時に、次に着地する場合、鉛直方向に, 目標着地位置に対して加えるオフセット. 0以下. 遅づきに対応するためのもの. 位置制御だと着地の衝撃が大きいので0がよいが、トルク制御時や、高低差がある地形や、衝撃を気にする必要がないシミュレーションでは-0.05等にした方がよい.
+    double goalOffset = -0.05; // [m]. 遊脚軌道生成時に、次に着地する場合、鉛直方向に, 目標着地位置に対して加えるオフセット. 0以下. 遅づきに対応するためのもの. 位置制御だと着地の衝撃が大きいので0がよいが、トルク制御時や、高低差がある地形や、衝撃を気にする必要がないシミュレーションでは-0.05等にした方がよい.
     double maxSwingTime = 2.0; // [s]. 0より大きい
     double resolutionTheta = 0.087266; // 5deg
     double resolutionTime = 0.05; // [s]
@@ -92,14 +92,20 @@ namespace actkin_balancer{
     cnoid::Isometry3 pose = cnoid::Isometry3::Identity();
     std::vector<bool> freeAxis = std::vector<bool>(6,true);
     int priority = 1; // 0 or 1. 0ならふつう. 1は重心と同じ
+
+    bool updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);
+    void convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);
   };
 
   class NominalInfo {
   public:
-    double time = 1.0;
+    double nominalqTime = 1.0;
     cnoid::VectorX nominalq;
     std::vector<NominalEE> nominalEE;
-    double omega = std::sqrt(9.8/1.0);
+    double nominalZ = 1.0;
+
+    bool updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);
+    void convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);
   };
 
 
@@ -120,7 +126,8 @@ namespace actkin_balancer{
     // legContacts
     std::vector<bool> actContact = std::vector<bool>{false,false};// rleg, lleg. contactsから計算されるactual contact
   public:
-    std::unordered_map<std::string, cnoid::LinkPtr> linkNameMap; // MODE_ABC中はconstant. URDFのLink名 -> linkPtr
+    std::unordered_map<std::string, cnoid::LinkPtr> nameLinkMap; // MODE_ABC中はconstant. URDFのLink名 -> linkPtr
+    std::unordered_map<cnoid::LinkPtr, std::string> linkNameMap; // MODE_ABC中はconstant. linkPtr -> URDFのLink名
     const double g = 9.80665; // constant. 重力加速度
   public:
     // parameters. contactable pointの情報.

@@ -14,12 +14,10 @@ namespace actkin_balancer {
                        Output& output) const;
 
   protected:
-    void calcDefaultStep(int swingLeg, const State& state, const Goal& goal,
-                         cnoid::Isometry3& landingCoords);
     void calcRealStrideLimitationHull(const int& swingLeg, const double& theta, const State& state, const std::vector<Eigen::Vector2d>& strideLimitationHull,
                                       std::vector<Eigen::Vector2d>& realStrideLimitationHull) const;
     void calcPath(int swingLeg, const State& state, const cnoid::Isometry3& target/*world frame*/, double refTime,
-                  std::vector<cnoid::Isometry3>& path, std::vector<double>& time) const;
+                  std::vector<cnoid::Isometry3>& path, std::vector<double>& time, bool& nearContact) const;
 
     class FootStepCandidate {
     public:

@@ -85,15 +85,40 @@ namespace actkin_balancer{
     }
   }
 
+  void NominalEE::updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl){
+    this->name = std::string(idl.name);
+    if(state.nameLinkMap.find(std::string(idl.link)) == state.nameLinkMap.end()){
+      std::cerr << idl.link << " not found" << std::endl;
+      return false;
+    }
+    this->link = state.nameLinkMap[std::string(idl.link)];
+
+    return true;
+  }
+
+  void NoinalEE::convertToIdl(const State& state, actkin_balancer::ActKinBalancerService::NominalEEIdl& idl) {
+    idl.name = this->name.c_str();
+    idl.link = state.linkNameMap[this->link].c_str();
+    eigen_rtm_conversions::poseEigenToRTM(this->localPose,idl.localPose);
+    idl.frameId = state.linkNameMap[this->frameLink].c_str();
+    eigen_rtm_conversions::poseEigenToRTM(this->framePose,idl.framePose);
+    idl.time = this->time;
+    eigen_rtm_conversions::poseEigenToRTM(this->pose,idl.pose);
+    for(int i=0;i<6;i++) idl.freeAxis[i] = this->freeAxis[i];
+    idl.priority = this->priority;
+  }
+
   void State::init(const cnoid::BodyPtr& robot_){
 
     this->robot = robot_;
 
-    this->linkNameMap[std::string("")] = nullptr; //world
+    this->nameLinkMap[std::string("")] = nullptr; //world
+    this->linkNameMap[nullptr] = std::string(""); //world
     for(int l=0;l<this->robot->numLinks() ; l++){
       cnoid::SgGroup* shape = this->robot->link(l)->shape();
       if(shape && shape->numChildObjects() > 0 && shape->child(0)->name().size()!=0){
-        this->linkNameMap[shape->child(0)->name()] = this->robot->link(l);
+        this->nameLinkMap[shape->child(0)->name()] = this->robot->link(l);
+        this->linkNameMap[this->robot->link(l)] = shape->child(0)->name();
       }
     }
 

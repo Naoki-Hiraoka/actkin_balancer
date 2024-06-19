@@ -246,10 +246,19 @@ bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalance
   std::lock_guard<std::mutex> guard(this->mutex_);
   if(this->mode_.isABCRunning()) return true;
 
+  
+
   return true;
 }
 bool ActKinBalancer::getActKinBalancerParam(actkin_balancer::ActKinBalancerService::ActKinBalancerParam& i_param){
   std::lock_guard<std::mutex> guard(this->mutex_);
+
+  i_param.rlegLink = state.linkNameMap[state.ee[actkin_balancer::RLEG].parentLink].c_str();
+  i_param.llegLink = state.linkNameMap[state.ee[actkin_balancer::LLEG].parentLink].c_str();
+  i_param.nominalqTime = state.nominal.nominalqTime;
+  eigen_rtm_conversions::vectorEigenToRTM(state.nominal.nominalq, i_param.nominalq);
+  i_param.nominalEE.length(state.nominal.nominalEE.size();
+
   return true;
 }
 
