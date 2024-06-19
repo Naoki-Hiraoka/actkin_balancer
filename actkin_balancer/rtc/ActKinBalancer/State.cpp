@@ -257,10 +257,15 @@ namespace actkin_balancer{
       for(int i=0;i<this->contacts.size();i++){
         if( ((this->contacts[i]->link1 == this->ee[LEG].parentLink) && (this->contacts[i]->link2 == nullptr)) ||
             ((this->contacts[i]->link1 == nullptr) && (this->contacts[i]->link2 == this->ee[LEG].parentLink)) ) {
-          cnoid::Vector3 value = this->ee[LEG].region.C * (poseInv * (this->contacts[i]->link1 ? this->contacts[i]->link1->T() * this->contacts[i]->localPose1.translation() : this->contacts[i]->localPose1.translation()));
-          // TODO 法線方向のチェック. 重心より高いかチェック
-          if( ((value - this->ee[LEG].region.ld).array() >= 0.0).all() &&
-              ((this->ee[LEG].region.ud - value).array() >= 0.0).all() ){
+          cnoid::Vector3 p = (this->contacts[i]->link1 ? this->contacts[i]->link1->T() * this->contacts[i]->localPose1.translation() : this->contacts[i]->localPose1.translation()); // world frame
+          cnoid::Vector3 value = this->ee[LEG].region.C * (poseInv * p);
+          // TODO 法線方向のチェック.
+          if(// region
+             ((value - this->ee[LEG].region.ld).array() >= 0.0).all() &&
+             ((this->ee[LEG].region.ud - value).array() >= 0.0).all() &&
+             // 重心より低い
+             p[2] < this->robot->centerOfMass()[2]
+             ){
             this->actContact[LEG] = true;
             break;
           }

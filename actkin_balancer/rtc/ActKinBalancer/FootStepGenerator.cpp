@@ -17,6 +17,7 @@ namespace actkin_balancer{
     }
 
     // 歩行可能姿勢のチェック -> UNPREFERABLE
+    bool preferable = true;
     // TODO
 
     std::vector<cnoid::Isometry3> legCoords{state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose, state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose};
