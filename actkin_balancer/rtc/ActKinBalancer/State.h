@@ -49,17 +49,18 @@ namespace actkin_balancer{
     double maxSwingThetaVelocity = 1.0; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
     double strideLimitationMinTheta = -0.785398; // footstepの下限. 支持脚相対. default -45[deg]. 0以下. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
-    double resolutionTheta = 0.087266; // 5deg
     std::vector<Eigen::Vector2d> strideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.35,-0.15),Eigen::Vector2d(-0.35,-0.15),Eigen::Vector2d(-0.35,-0.350),Eigen::Vector2d(-0.20,-0.45),Eigen::Vector2d(0.20,-0.45),Eigen::Vector2d(0.35,-0.350)}; // footstepの上下限の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はhullとcollisionMarginを用いて別で評価されるので、strideLimitationHullでは考慮しなくて良い. 斜め方向の角を削るなどして、IKが解けるようにせよ.
     double collisionMargin = 0.02; // [m]. 左右の足のhullがこの距離以上離れるようにする. 0以上.
     double maxLandingHeight = 0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの上限(自己干渉やIKの考慮が含まれる).
     double minLandingHeight = -0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの下限(自己干渉やIKの考慮が含まれる).
     double goalOffset = -0.02; // [m]. 遊脚軌道生成時に、次に着地する場合、鉛直方向に, 目標着地位置に対して加えるオフセット. 0以下. 遅づきに対応するためのもの. 位置制御だと着地の衝撃が大きいので0がよいが、トルク制御時や、高低差がある地形や、衝撃を気にする必要がないシミュレーションでは-0.05等にした方がよい.
     double maxSwingTime = 2.0; // [s]. 0より大きい
+    double resolutionTheta = 0.087266; // 5deg
     double resolutionTime = 0.05; // [s]
     double resolutionXY = 0.01; // [m]
-    double liftXYThre1 = 0.01; // [m]
+    double liftXYThre1 = 0.01; // [m] resolution程度に大きくておく
     double liftXYThre2 = 0.05; // [m]
+    double liftThetaThre = 0.087266; // [m] resolution程度に大きくしておく
     double liftRatioThre = 1.0; // 0より大きい
     double delayTimeOffset = 0.2; // [s]
 
