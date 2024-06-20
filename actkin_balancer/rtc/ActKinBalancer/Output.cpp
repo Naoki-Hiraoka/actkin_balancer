@@ -3,13 +3,13 @@
 
 namespace actkin_balancer {
 
-  void Output::convertToIdl(actkin_stabilizer_msgs::RefStateIdl& m_refState) const{
+  void Output::convertToIdl(const State& state, actkin_stabilizer_msgs::RefStateIdl& m_refState) const{
     m_refState.refEEPose.length(this->eeGoals.size());
     for(int i=0;i<this->eeGoals.size();i++){
       m_refState.refEEPose[i].name = this->eeGoals[i].name.c_str();
-      m_refState.refEEPose[i].link = this->eeGoals[i].link->name().c_str();
+      m_refState.refEEPose[i].link = state.linkNameMap.find(this->eeGoals[i].link)->second.c_str();
       eigen_rtm_conversions::poseEigenToRTM(this->eeGoals[i].localPose, m_refState.refEEPose[i].localPose);
-      m_refState.refEEPose[i].frameId = this->eeGoals[i].frameLink ? this->eeGoals[i].frameLink->name().c_str() : "";
+      m_refState.refEEPose[i].frameId = this->eeGoals[i].frameLink ? state.linkNameMap.find(this->eeGoals[i].frameLink)->second.c_str() : "";
       eigen_rtm_conversions::poseEigenToRTM(this->eeGoals[i].framePose, m_refState.refEEPose[i].framePose);
       m_refState.refEEPose[i].freeAxis.length(6); // 自動でサイズ6にならないみたい
       for(int j=0;j<6;j++) m_refState.refEEPose[i].freeAxis[j] = this->eeGoals[i].freeAxis[j];
@@ -46,9 +46,9 @@ namespace actkin_balancer {
     m_refState.refContact.length(this->contactGoals.size());
     for(int i=0;i<this->contactGoals.size();i++){
       m_refState.refContact[i].name = this->contactGoals[i].name.c_str();
-      m_refState.refContact[i].link1 = this->contactGoals[i].link1 ? this->contactGoals[i].link1->name().c_str() : "";
+      m_refState.refContact[i].link1 = this->contactGoals[i].link1 ? state.linkNameMap.find(this->contactGoals[i].link1)->second.c_str() : "";
       eigen_rtm_conversions::poseEigenToRTM(this->contactGoals[i].localPose1, m_refState.refContact[i].localPose1);
-      m_refState.refContact[i].link2 = this->contactGoals[i].link2 ? this->contactGoals[i].link2->name().c_str() : "";
+      m_refState.refContact[i].link2 = this->contactGoals[i].link2 ? state.linkNameMap.find(this->contactGoals[i].link2)->second.c_str() : "";
       m_refState.refContact[i].freeAxis.length(6);
       for(int j=0;j<6;j++) m_refState.refContact[i].freeAxis[j] = this->contactGoals[i].freeAxis[j];
       eigen_rtm_conversions::matrixEigenToRTM(this->contactGoals[i].region.C, m_refState.refContact[i].region.C);

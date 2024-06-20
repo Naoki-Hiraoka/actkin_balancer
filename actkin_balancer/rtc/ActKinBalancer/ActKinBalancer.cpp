@@ -144,6 +144,7 @@ RTC::ReturnCode_t ActKinBalancer::onExecute(RTC::UniqueId ec_id){
   // startABC直後の一回のみ実行
   if(this->mode_.isSyncToABCInit()){
     this->state_.onStartBalancer();
+    this->footStepGenerator_.onStartBalancer(this->state_);
   }
 
   if(this->mode_.isABCRunning()){
@@ -209,7 +210,7 @@ bool ActKinBalancer::readInPortDataForGoal(ActKinBalancer::Ports& ports, const s
 bool ActKinBalancer::writeOutPortData(const actkin_balancer::State& state, const actkin_balancer::Output& output, const ActKinBalancer::ControlMode& mode,
                                       ActKinBalancer::Ports& ports){
   if(mode.isABCRunning()){
-    output.convertToIdl(ports.m_outState_);
+    output.convertToIdl(state, ports.m_outState_);
     ports.m_outStateOut_.write();
   }
   return true;

@@ -79,7 +79,7 @@ namespace actkin_balancer {
     std::vector<RefContact> contactGoals;
     Feasibility feasibility = Feasibility::INFEASIBLE;
 
-    void convertToIdl(actkin_stabilizer_msgs::RefStateIdl& m_refState) const;
+    void convertToIdl(const State& state, actkin_stabilizer_msgs::RefStateIdl& m_refState) const;
   };
 };
 

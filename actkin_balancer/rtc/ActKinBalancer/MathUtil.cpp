@@ -135,6 +135,24 @@ namespace actkin_balancer {
       // }
     }
 
+    bool isIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q) {
+      for(int i=0; i<P.size();i++){
+        if(isInsideHull(P[i],Q)) return true;
+      }
+      for(int j=0; j<Q.size();j++){
+        if(isInsideHull(Q[j],P)) return true;
+      }
+      Eigen::Vector2d r;
+      if(P.size()>1 && Q.size() > 1){
+        for(int i=0; i<P.size();i++){
+          for(int j=0; j<Q.size();j++){
+            if(isIntersect(r, P[i], P[(i+1)%P.size()], Q[j], Q[(j+1)%Q.size()])) return true;;
+          }
+        }
+      }
+      return false;
+    }
+
     std::vector<Eigen::Vector2d> calcIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q) {
       std::vector<Eigen::Vector2d> R;
       for(int i=0; i<P.size();i++){
