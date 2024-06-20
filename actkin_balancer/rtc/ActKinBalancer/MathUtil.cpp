@@ -1,8 +1,8 @@
 #include "MathUtil.h"
 
-#include <opencv2/imgproc.hpp>
+//#include <opencv2/imgproc.hpp>
 #include <limits>
-
+#include <iostream>
 
 namespace actkin_balancer {
   namespace mathutil {
@@ -74,80 +74,162 @@ namespace actkin_balancer {
       return ret;
     }
 
+    inline double cross(const Eigen::Vector2d& a, const Eigen::Vector2d& b){
+      return a[0] * b[1] - a[1] * b[0];
+    }
+
+    inline bool isIntersect (Eigen::Vector2d& r, const Eigen::Vector2d& a0, const Eigen::Vector2d& a1, const Eigen::Vector2d& b0, const Eigen::Vector2d& b1){
+      double D =  mathutil::cross(a1 - a0, b1 - b0);
+      if (D == 0.0) return false;
+      double t =  mathutil::cross(b0 - a0, b1 - b0) / D;
+      double s = - mathutil::cross(a0 - b0, a1 - a0) / D;
+      r = a0 + t * (a1 - a0);
+      return (t >= 0.0 && t <= 1.0 && s >= 0.0 && s <= 1.0);
+    }
+
+
     void calcConvexHull(const std::vector<Eigen::Vector2d>& contours, std::vector<Eigen::Vector2d>& hull) {
-      if(contours.size()==0) {
-        hull.clear();
+      std::vector<Eigen::Vector2d> tmpVertices = contours;
+      if(tmpVertices.size() == 1) {
+        hull = tmpVertices;
         return;
       }
-
-      std::vector<cv::Point2f> contours_;
-      for(int i=0;i<contours.size();i++){
-        contours_.emplace_back(contours[i][0],contours[i][1]);
+      if(tmpVertices.size() == 2) {
+        if(tmpVertices[0] != tmpVertices[1]) {
+          hull = tmpVertices;
+          return;
+        }else{
+          hull = std::vector<Eigen::Vector2d>{tmpVertices[0]};
+          return;
+        }
       }
+      std::sort(tmpVertices.begin(), tmpVertices.end(), [](const Eigen::Vector2d& lv, const Eigen::Vector2d& rv){ return lv(0) < rv(0) || (lv(0) == rv(0) && lv(1) < rv(1));});
+      std::vector<Eigen::Vector2d> convexHull(2*tmpVertices.size());
+      int n_ch = 0;
+      for (int i = 0; i < tmpVertices.size(); convexHull[n_ch++] = tmpVertices[i++])
+        while (n_ch >= 2 && mathutil::cross(convexHull[n_ch-1] - convexHull[n_ch-2], tmpVertices[i] - convexHull[n_ch-2]) <= 0.0) n_ch--;
+      for (int i = tmpVertices.size()-2, j = n_ch+1; i >= 0; convexHull[n_ch++] = tmpVertices[i--])
+        while (n_ch >= j && mathutil::cross(convexHull[n_ch-1] - convexHull[n_ch-2], tmpVertices[i] - convexHull[n_ch-2]) <= 0.0) n_ch--;
+      convexHull.resize(std::max(0,n_ch-1));
+      hull = convexHull;
+      return;
 
-      std::vector<cv::Point2f> hull_;
-      cv::convexHull(contours_, hull_);
 
-      hull.clear();
-      for(int i=0;i<hull_.size();i++){
-        hull.emplace_back(hull_[i].x,hull_[i].y);
-      }
+      // cv::convexHullはやや遅い.
+      // if(contours.size()==0) {
+      //   hull.clear();
+      //   return;
+      // }
+
+      // std::vector<cv::Point2f> contours_;
+      // for(int i=0;i<contours.size();i++){
+      //   contours_.emplace_back(contours[i][0],contours[i][1]);
+      // }
+
+      // std::vector<cv::Point2f> hull_;
+      // cv::convexHull(contours_, hull_);
+
+      // hull.clear();
+      // for(int i=0;i<hull_.size();i++){
+      //   hull.emplace_back(hull_[i].x,hull_[i].y);
+      // }
     }
 
     std::vector<Eigen::Vector2d> calcIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q) {
-      if(P.size() == 0 || Q.size() == 0) return std::vector<Eigen::Vector2d>();
-
-      std::vector<cv::Point2f> P_;
-      for(int i=0;i<P.size();i++) P_.emplace_back(P[i][0],P[i][1]);
-      std::vector<cv::Point2f> Q_;
-      for(int i=0;i<Q.size();i++) Q_.emplace_back(Q[i][0],Q[i][1]);
-
-      if(P_.size() == 1){
-        if(cv::pointPolygonTest(Q_,P_[0],false) >= 0.0) return P;
-        else return std::vector<Eigen::Vector2d>();
+      std::vector<Eigen::Vector2d> R;
+      for(int i=0; i<P.size();i++){
+        if(isInsideHull(P[i],Q)) R.push_back(P[i]);
       }
-      if(Q_.size() == 1){
-        if(cv::pointPolygonTest(P_,Q_[0],false) >= 0.0) return Q;
-        else return std::vector<Eigen::Vector2d>();
+      for(int j=0; j<Q.size();j++){
+        if(isInsideHull(Q[j],P)) R.push_back(Q[j]);
       }
+      Eigen::Vector2d r;
+      if(P.size()>1 && Q.size() > 1){
+        for(int i=0; i<P.size();i++){
+          for(int j=0; j<Q.size();j++){
+            if(isIntersect(r, P[i], P[(i+1)%P.size()], Q[j], Q[(j+1)%Q.size()])) R.push_back(r);
+          }
+        }
+      }
+      calcConvexHull(R, R);
+      return R;
 
-      std::vector<cv::Point2f> ret_;
-      // 単精度浮動小数点にしないとエラーが出る
-      cv::intersectConvexConvex(P_,Q_,ret_,true);
+      // OpenCVのcv::intersectConvexConvexは、一方が一方に内接する場合に計算に失敗するので使ってはいけない.
+      // if(P.size() == 0 || Q.size() == 0) return std::vector<Eigen::Vector2d>();
 
-      std::vector<Eigen::Vector2d> ret;
-      for(int i=0;i<ret.size();i++) ret.emplace_back(ret_[i].x,ret_[i].y);
-      return ret;
+      // std::vector<cv::Point2f> P_;
+      // for(int i=0;i<P.size();i++) P_.emplace_back(P[i][0],P[i][1]);
+      // std::vector<cv::Point2f> Q_;
+      // for(int i=0;i<Q.size();i++) Q_.emplace_back(Q[i][0],Q[i][1]);
+
+      // if(P_.size() == 1){
+      //   if(cv::pointPolygonTest(Q_,P_[0],false) >= 0.0) return P;
+      //   else return std::vector<Eigen::Vector2d>();
+      // }
+      // if(Q_.size() == 1){
+      //   if(cv::pointPolygonTest(P_,Q_[0],false) >= 0.0) return Q;
+      //   else return std::vector<Eigen::Vector2d>();
+      // }
+
+      // std::vector<cv::Point2f> ret_;
+      // // 単精度浮動小数点にしないとエラーが出る
+      // cv::intersectConvexConvex(P_,Q_,ret_,true);
+
+      // std::vector<Eigen::Vector2d> ret;
+      // for(int i=0;i<ret.size();i++) ret.emplace_back(ret_[i].x,ret_[i].y);
+
+
+      // if(R.size() != ret.size()){
+      //   std::cerr << "P"<< std::endl;
+      //   for(int i=0;i<P.size();i++) std::cerr << P[i].transpose() << std::endl;
+      //   std::cerr << "Q"<< std::endl;
+      //   for(int i=0;i<Q.size();i++) std::cerr << Q[i].transpose() << std::endl;
+      //   std::cerr << "R"<< std::endl;
+      //   for(int i=0;i<R.size();i++) std::cerr << R[i].transpose() << std::endl;
+      //   std::cerr << "r"<<std::endl;
+      //   for(int i=0;i<ret.size();i++) std::cerr << ret[i].transpose() << std::endl;
+      // }
+
+      // return ret;
     }
 
     bool isInsideHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours) {
-      if(contours.size()==0) {
-        return false;
+      static const double eps = 1e-10; // edge上にある場合に浮動小数点の丸め誤差に対応
+
+      if(contours.size() == 0) return false;
+      else if(contours.size() == 1) return contours[0] == p;
+      else if(contours.size() == 2) {
+        Eigen::Vector2d a = contours[0] - p, b = contours[1] - p;
+        return (std::abs(mathutil::cross(a,b)) < eps) && (a.dot(b) <= 0);
+      }else {
+        for (int i = 0; i < contours.size(); i++) {
+          Eigen::Vector2d a = contours[i] - p, b = contours[(i+1)%contours.size()] - p;
+          if(mathutil::cross(a,b) < -eps) return false;
+        }
+        return true;
       }
 
-      std::vector<cv::Point2f> contours_;
-      for(int i=0;i<contours.size();i++){
-        contours_.emplace_back(contours[i][0],contours[i][1]);
-      }
+      // openCVのcv::pointPolygonTestは、凹形状に対応しているぶん低速である + edge上にある場合に浮動小数点の丸め誤差により誤判定する場合がある ので、使ってはならない
+      // if(contours.size()==0) {
+      //   return false;
+      // }
 
-      cv::Point2f pt(p[0],p[1]);
-      double result = cv::pointPolygonTest(contours_,pt,false);
-      return result >= 0.0;
+      // std::vector<cv::Point2f> contours_;
+      // for(int i=0;i<contours.size();i++){
+      //   contours_.emplace_back(contours[i][0],contours[i][1]);
+      // }
+
+      // cv::Point2f pt(p[0],p[1]);
+      // double result = cv::pointPolygonTest(contours_,pt,false);
+
+      // return result >= 0.0;
     }
 
     Eigen::Vector2d calcNearestPointOfHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours){
       if(contours.size() == 0)  return p;
       if(contours.size() == 1) return contours[0];
 
-      std::vector<cv::Point2f> contours_;
-      for(int i=0;i<contours.size();i++){
-        contours_.emplace_back(contours[i][0],contours[i][1]);
-      }
-
-      cv::Point2f p_(p[0],p[1]);
-      double result = cv::pointPolygonTest(contours_,p_,false);
-
-      if(result >= 0.0) return p; // p is inside contours
+      if(isInsideHull(p, contours)) return p; // p is inside contours
 
       double minDistance = std::numeric_limits<double>::max();
       Eigen::Vector2d nearestPoint;

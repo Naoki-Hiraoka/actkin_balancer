@@ -27,7 +27,6 @@ namespace actkin_balancer {
     // 内部で単精度浮動小数点数を使う
     std::vector<Eigen::Vector2d> calcIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q);
 
-    // 内部で単精度浮動小数点数を使う
     bool isInsideHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours);
 
     // 内部で単精度浮動小数点数を使う

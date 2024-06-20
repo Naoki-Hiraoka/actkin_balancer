@@ -140,6 +140,10 @@ namespace actkin_balancer{
       }
     }
 
+    if(debugLevel >= 2) {
+      std::cerr << "stride limitation " << candidates.size() << std::endl;
+    }
+
     // Z情報を付与し、Z高さで絞り込み
     {
       std::vector<FootStepCandidate> nextCandidates;
@@ -167,6 +171,10 @@ namespace actkin_balancer{
       }else{
         std::cerr << "[" << instance_name << "] height not found" << std::endl;
       }
+    }
+
+    if(debugLevel >= 2) {
+      std::cerr << "Z " << candidates.size() << std::endl;
     }
 
 
@@ -216,6 +224,10 @@ namespace actkin_balancer{
       }
     }
 
+    if(debugLevel >= 2) {
+      std::cerr << "reachable " << candidates.size() << std::endl;
+    }
+
     // steppableで絞り込み
     {
       std::vector<FootStepCandidate> nextCandidates;
@@ -236,6 +248,10 @@ namespace actkin_balancer{
       }else{
         std::cerr << "[" << instance_name << "] steppable not found" << std::endl;
       }
+    }
+
+    if(debugLevel >= 2) {
+      std::cerr << "steppable " << candidates.size() << std::endl;
     }
 
     // capturableで絞り込み
@@ -298,6 +314,10 @@ namespace actkin_balancer{
         }
       }
 
+      if(debugLevel >= 2) {
+        std::cerr << "capturable(0) " << nextCandidates.size() << std::endl;
+      }
+
       if(nextCandidates.size() > 0.0) {
         candidates = nextCandidates;
       }else{
@@ -350,6 +370,10 @@ namespace actkin_balancer{
       }
     }
 
+    if(debugLevel >= 2) {
+      std::cerr << "capturable " << candidates.size() << std::endl;
+    }
+
 
     // default stepで絞り込み.
     // thetaがcurerntよりもどれだけ近づくか
@@ -399,6 +423,10 @@ namespace actkin_balancer{
       }else{
         std::cerr << "[" << instance_name << "] default theta not found" << std::endl;
       }
+    }
+
+    if(debugLevel >= 2) {
+      std::cerr << "default pos " << candidates.size() << std::endl;
     }
 
     // default stepで絞り込み.
@@ -453,6 +481,10 @@ namespace actkin_balancer{
       }else{
         std::cerr << "[" << instance_name << "] default time not found" << std::endl;
       }
+    }
+
+    if(debugLevel >= 2) {
+      std::cerr << "default time " << candidates.size() << std::endl;
     }
 
     FootStepCandidate target = candidates[0];
@@ -655,10 +687,10 @@ namespace actkin_balancer{
           p.translation() = minDist * supportLegToSwingLegDir;
           p.linear() = (Eigen::Matrix2d() << supportLegToSwingLegDir[0], -supportLegToSwingLegDir[1],
                         supportLegToSwingLegDir[1], supportLegToSwingLegDir[0]).finished();
-          minDistHull.push_back(p * Eigen::Vector2d(0.0, -1e10));
-          minDistHull.push_back(p * Eigen::Vector2d(1e10, -1e10));
-          minDistHull.push_back(p * Eigen::Vector2d(1e10, 1e10));
-          minDistHull.push_back(p * Eigen::Vector2d(0.0, 1e10));
+          minDistHull.push_back(p * Eigen::Vector2d(0.0, -1e2)); // 1e2はできるだけ大きな値. 大きすぎても桁落ちの危険があるので. とくに単精度浮動小数点を使う関数が混じっていると危険.
+          minDistHull.push_back(p * Eigen::Vector2d(1e2, -1e2));
+          minDistHull.push_back(p * Eigen::Vector2d(1e2, 1e2));
+          minDistHull.push_back(p * Eigen::Vector2d(0.0, 1e2));
         }
 
         std::vector<Eigen::Vector2d> nextRealStrideLimitationHull = mathutil::calcIntersectConvexHull(realStrideLimitationHull, minDistHull);

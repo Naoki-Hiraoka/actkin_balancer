@@ -49,3 +49,7 @@ add_dependencies(ActKinBalancer RTMBUILD2_${PROJECT_NAME}_genrpc) # wait for rtm
 
 add_executable(ActKinBalancerComp ActKinBalancerComp.cpp)
 target_link_libraries(ActKinBalancerComp ActKinBalancer)
+
+
+add_executable(hoge hoge.cpp)
+target_link_libraries(hoge ActKinBalancer)

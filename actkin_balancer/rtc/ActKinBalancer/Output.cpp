@@ -49,6 +49,7 @@ namespace actkin_balancer {
       m_refState.refContact[i].link1 = this->contactGoals[i].link1 ? this->contactGoals[i].link1->name().c_str() : "";
       eigen_rtm_conversions::poseEigenToRTM(this->contactGoals[i].localPose1, m_refState.refContact[i].localPose1);
       m_refState.refContact[i].link2 = this->contactGoals[i].link2 ? this->contactGoals[i].link2->name().c_str() : "";
+      m_refState.refContact[i].freeAxis.length(6);
       for(int j=0;j<6;j++) m_refState.refContact[i].freeAxis[j] = this->contactGoals[i].freeAxis[j];
       eigen_rtm_conversions::matrixEigenToRTM(this->contactGoals[i].region.C, m_refState.refContact[i].region.C);
       eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].region.ld, m_refState.refContact[i].region.ld);
