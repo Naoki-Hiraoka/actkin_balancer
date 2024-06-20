@@ -21,13 +21,16 @@ namespace actkin_balancer {
     Eigen::Isometry3d orientCoordToAxis(const Eigen::Isometry3d& m, const Eigen::Vector3d& axis, const Eigen::Vector3d& localaxis = Eigen::Vector3d::UnitZ());
 
 
-    // hullとcontoursは同一オブジェクトでもよい
+    // hullとcontoursは同一オブジェクトでもよい. 内部で単精度浮動小数点数を使う
     void calcConvexHull(const std::vector<Eigen::Vector2d>& contours, std::vector<Eigen::Vector2d>& hull);
 
+    // 内部で単精度浮動小数点数を使う
     std::vector<Eigen::Vector2d> calcIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q);
 
+    // 内部で単精度浮動小数点数を使う
     bool isInsideHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours);
 
+    // 内部で単精度浮動小数点数を使う
     Eigen::Vector2d calcNearestPointOfHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours);
 
     double findExtremes(const std::vector<Eigen::Vector2d> vertices, const Eigen::Vector2d& dir, std::vector<Eigen::Vector2d>& ret);

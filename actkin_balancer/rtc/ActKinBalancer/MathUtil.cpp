@@ -80,12 +80,12 @@ namespace actkin_balancer {
         return;
       }
 
-      std::vector<cv::Point2d> contours_;
+      std::vector<cv::Point2f> contours_;
       for(int i=0;i<contours.size();i++){
         contours_.emplace_back(contours[i][0],contours[i][1]);
       }
 
-      std::vector<cv::Point2d> hull_;
+      std::vector<cv::Point2f> hull_;
       cv::convexHull(contours_, hull_);
 
       hull.clear();
@@ -97,9 +97,9 @@ namespace actkin_balancer {
     std::vector<Eigen::Vector2d> calcIntersectConvexHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q) {
       if(P.size() == 0 || Q.size() == 0) return std::vector<Eigen::Vector2d>();
 
-      std::vector<cv::Point2d> P_;
+      std::vector<cv::Point2f> P_;
       for(int i=0;i<P.size();i++) P_.emplace_back(P[i][0],P[i][1]);
-      std::vector<cv::Point2d> Q_;
+      std::vector<cv::Point2f> Q_;
       for(int i=0;i<Q.size();i++) Q_.emplace_back(Q[i][0],Q[i][1]);
 
       if(P_.size() == 1){
@@ -111,7 +111,8 @@ namespace actkin_balancer {
         else return std::vector<Eigen::Vector2d>();
       }
 
-      std::vector<cv::Point2d> ret_;
+      std::vector<cv::Point2f> ret_;
+      // 単精度浮動小数点にしないとエラーが出る
       cv::intersectConvexConvex(P_,Q_,ret_,true);
 
       std::vector<Eigen::Vector2d> ret;
@@ -124,12 +125,12 @@ namespace actkin_balancer {
         return false;
       }
 
-      std::vector<cv::Point2d> contours_;
+      std::vector<cv::Point2f> contours_;
       for(int i=0;i<contours.size();i++){
         contours_.emplace_back(contours[i][0],contours[i][1]);
       }
 
-      cv::Point2d pt(p[0],p[1]);
+      cv::Point2f pt(p[0],p[1]);
       double result = cv::pointPolygonTest(contours_,pt,false);
       return result >= 0.0;
     }
@@ -138,12 +139,12 @@ namespace actkin_balancer {
       if(contours.size() == 0)  return p;
       if(contours.size() == 1) return contours[0];
 
-      std::vector<cv::Point2d> contours_;
+      std::vector<cv::Point2f> contours_;
       for(int i=0;i<contours.size();i++){
         contours_.emplace_back(contours[i][0],contours[i][1]);
       }
 
-      cv::Point2d p_(p[0],p[1]);
+      cv::Point2f p_(p[0],p[1]);
       double result = cv::pointPolygonTest(contours_,p_,false);
 
       if(result >= 0.0) return p; // p is inside contours

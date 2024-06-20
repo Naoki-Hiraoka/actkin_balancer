@@ -92,7 +92,7 @@ namespace actkin_balancer{
     cnoid::Isometry3 framePose = cnoid::Isometry3::Identity();
     double time = 1.0;
     cnoid::Isometry3 pose = cnoid::Isometry3::Identity();
-    std::vector<bool> freeAxis = std::vector<bool>(6,true);
+    std::vector<bool> freeAxis = std::vector<bool>(6,false);
     int priority = 1; // 0 or 1. 0ならふつう. 1は重心と同じ
 
     bool updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl);

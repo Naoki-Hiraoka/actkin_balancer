@@ -247,12 +247,16 @@ bool ActKinBalancer::setActKinBalancerParam(const actkin_balancer::ActKinBalance
   std::lock_guard<std::mutex> guard(this->mutex_);
   if(this->mode_.isABCRunning()) return true;
 
-  if(this->state_.nameLinkMap.find(std::string(i_param.rlegLink)) == this->state_.nameLinkMap.end()){
+  if(this->state_.nameLinkMap.find(std::string(i_param.rlegLink)) == this->state_.nameLinkMap.end() ||
+     this->state_.nameLinkMap[std::string(i_param.rlegLink)] == nullptr
+     ){
     std::cerr << "[" << this->m_profile.instance_name << "] " << i_param.rlegLink << " not found" << std::endl;
   }else{
     this->state_.ee[actkin_balancer::RLEG].parentLink = this->state_.nameLinkMap[std::string(i_param.rlegLink)];
   }
-  if(this->state_.nameLinkMap.find(std::string(i_param.llegLink)) == this->state_.nameLinkMap.end()){
+  if(this->state_.nameLinkMap.find(std::string(i_param.llegLink)) == this->state_.nameLinkMap.end() ||
+     this->state_.nameLinkMap[std::string(i_param.llegLink)] == nullptr
+     ){
     std::cerr << "[" << this->m_profile.instance_name << "] " << i_param.llegLink << " not found" << std::endl;
   }else{
     this->state_.ee[actkin_balancer::LLEG].parentLink = this->state_.nameLinkMap[std::string(i_param.llegLink)];

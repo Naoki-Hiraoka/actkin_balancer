@@ -11,6 +11,7 @@ namespace actkin_balancer {
       eigen_rtm_conversions::poseEigenToRTM(this->eeGoals[i].localPose, m_refState.refEEPose[i].localPose);
       m_refState.refEEPose[i].frameId = this->eeGoals[i].frameLink ? this->eeGoals[i].frameLink->name().c_str() : "";
       eigen_rtm_conversions::poseEigenToRTM(this->eeGoals[i].framePose, m_refState.refEEPose[i].framePose);
+      m_refState.refEEPose[i].freeAxis.length(6); // 自動でサイズ6にならないみたい
       for(int j=0;j<6;j++) m_refState.refEEPose[i].freeAxis[j] = this->eeGoals[i].freeAxis[j];
       m_refState.refEEPose[i].priority = this->eeGoals[i].priority;
 

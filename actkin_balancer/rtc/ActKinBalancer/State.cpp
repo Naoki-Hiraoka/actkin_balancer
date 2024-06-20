@@ -43,18 +43,20 @@ namespace actkin_balancer{
     {
       // update region
       int regionDim = 1 + this->hull.size();
-      this->region.C = Eigen::MatrixXd::Zero(regionDim,6);
-      this->region.ld = -1e10 * Eigen::VectorXd::Zero(regionDim);
-      this->region.ud = +1e10 * Eigen::VectorXd::Ones(regionDim);
+      this->region.C = Eigen::MatrixXd::Zero(regionDim,3);
+      this->region.ld = -1e10 * Eigen::VectorXd::Ones(regionDim);
+      this->region.ud = Eigen::VectorXd::Zero(regionDim);
       int idx=0;
       this->region.C(idx,2) = 1.0; this->region.ld[idx] = -this->regionMargin; this->region.ud[idx] = this->regionMargin;
+      idx++;
       for(int j=0;j<this->hull.size();j++){
         Eigen::Vector2d v1 = this->hull[j]; // EEF frame/origin
         Eigen::Vector2d v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
         if(v1.head<2>() == v2.head<2>()) continue;
         Eigen::Vector2d r = Eigen::Vector2d(v2[1]-v1[1],v1[0]-v2[0]).normalized();
         double d = r.dot(v1);
-        this->region.C(idx,0) = r[0]; this->region.C(idx,1) = r[1]; this->region.ud[idx] = d; idx++;
+        this->region.C(idx,0) = r[0]; this->region.C(idx,1) = r[1]; this->region.ud[idx] = d + this->regionMargin;
+        idx++;
       }
     }
 
@@ -115,13 +117,16 @@ namespace actkin_balancer{
     eigen_rtm_conversions::poseEigenToRTM(this->framePose,idl.framePose);
     idl.time = this->time;
     eigen_rtm_conversions::poseEigenToRTM(this->pose,idl.pose);
+    idl.freeAxis.length(6); // 自動でサイズ6にならないみたい
     for(int i=0;i<6;i++) idl.freeAxis[i] = this->freeAxis[i];
     idl.priority = this->priority;
   }
 
   bool NominalInfo::updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalIdl& idl) {
     this->nominalqTime = std::max(0.0, idl.nominalqTime);
-    eigen_rtm_conversions::vectorRTMToEigen(idl.nominalq, this->nominalq);
+    if(idl.nominalq.length() == state.robot->numJoints()){
+      eigen_rtm_conversions::vectorRTMToEigen(idl.nominalq, this->nominalq);
+    }
     this->nominalEE.clear();
     for(int i=0;i<idl.nominalEE.length();i++){
       NominalEE nominalEE_;
@@ -252,13 +257,13 @@ namespace actkin_balancer{
 
     // update actContacts
     for(int LEG=0;LEG<NUM_LEGS;LEG++){
-      cnoid::Isometry3 poseInv = this->ee[LEG].parentLink->T() * this->ee[LEG].localPose;
+      cnoid::Isometry3 poseInv = (this->ee[LEG].parentLink->T() * this->ee[LEG].localPose).inverse();
       this->actContact[LEG] = false;
       for(int i=0;i<this->contacts.size();i++){
         if( ((this->contacts[i]->link1 == this->ee[LEG].parentLink) && (this->contacts[i]->link2 == nullptr)) ||
             ((this->contacts[i]->link1 == nullptr) && (this->contacts[i]->link2 == this->ee[LEG].parentLink)) ) {
           cnoid::Vector3 p = (this->contacts[i]->link1 ? this->contacts[i]->link1->T() * this->contacts[i]->localPose1.translation() : this->contacts[i]->localPose1.translation()); // world frame
-          cnoid::Vector3 value = this->ee[LEG].region.C * (poseInv * p);
+          cnoid::VectorX value = this->ee[LEG].region.C * (poseInv * p);
           // TODO 法線方向のチェック.
           if(// region
              ((value - this->ee[LEG].region.ld).array() >= 0.0).all() &&

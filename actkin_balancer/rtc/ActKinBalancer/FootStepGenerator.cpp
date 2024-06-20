@@ -625,6 +625,9 @@ namespace actkin_balancer{
       output.vrpGoals[0].trajectory[2].point = p;
     }
 
+    if(preferable) output.feasibility = Feasibility::FEASIBLE;
+    else output.feasibility = Feasibility::UNPREFERABLE;
+
 
   }
 
