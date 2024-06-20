@@ -72,7 +72,7 @@ namespace actkin_balancer{
       }
 
       for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
-        int swingLeg = supportLeg == RLEG ? LLEG : RLEG;
+        int swingLeg = (supportLeg == RLEG) ? LLEG : RLEG;
 
         // thetaをsample
         std::vector<double> sampledThetas; // 支持脚相対
@@ -126,6 +126,10 @@ namespace actkin_balancer{
               candidate.keepDouble = false;
               candidate.p = sampledPs[j];
               candidate.theta = theta;
+              candidate.pose.translation() = candidate.p;
+              candidate.pose.linear() = cnoid::AngleAxisd(candidate.theta, cnoid::Vector3::UnitZ()).toRotationMatrix();
+              candidate.pose2D.translation() = candidate.p.head<2>();
+              candidate.pose2D.linear() = Eigen::Rotation2Dd(candidate.theta).toRotationMatrix();
               candidate.minTime = 0.0;
               candidate.maxTime = state.ee[swingLeg].maxSwingTime;
               candidates.push_back(candidate);
@@ -153,7 +157,7 @@ namespace actkin_balancer{
           continue;
         }
 
-        int swingLeg = candidates[i].supportLeg == RLEG ? LLEG : RLEG;
+        int swingLeg = (candidates[i].supportLeg == RLEG) ? LLEG : RLEG;
 
         double z = 0.0;
         // TODO. heightmapからzを計算.
@@ -162,6 +166,7 @@ namespace actkin_balancer{
            z >= state.ee[swingLeg].minLandingHeight){
           FootStepCandidate nextCandidate = candidates[i];
           nextCandidate.p[2] = z;
+          nextCandidate.pose.translation()[2] = z;
           nextCandidates.push_back(nextCandidate);
         }
       }
@@ -188,10 +193,8 @@ namespace actkin_balancer{
         }
 
         int supportLeg = candidates[i].supportLeg;
-        int swingLeg = candidates[i].supportLeg == RLEG ? LLEG : RLEG;
-        cnoid::Isometry3 targetPose; // world frame
-        targetPose.translation() = legCoordsHorizontal[supportLeg] * candidates[i].p;
-        targetPose.linear() = legCoordsHorizontal[supportLeg].linear() * cnoid::AngleAxisd(candidates[i].theta, cnoid::Vector3::UnitZ());
+        int swingLeg = (candidates[i].supportLeg == RLEG) ? LLEG : RLEG;
+        cnoid::Isometry3 targetPose = legCoordsHorizontal[supportLeg] * candidates[i].pose; // world frame
 
         double nextMinTime = candidates[i].minTime;
         double nextMaxTime = candidates[i].maxTime;
@@ -279,14 +282,14 @@ namespace actkin_balancer{
 
         // 着地時にcapturableかどうかを判定する
         int supportLeg = candidates[i].supportLeg;
-        int swingLeg = candidates[i].supportLeg == RLEG ? LLEG : RLEG;
+        int swingLeg = (candidates[i].supportLeg == RLEG) ? LLEG : RLEG;
         Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚
         std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
         for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
           endSupportHull.push_back(state.ee[supportLeg].safeHull[v]);
         }
         for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
-          endSupportHull.push_back(legCoords2D[supportLeg].inverse() * legCoords2D[swingLeg] * state.ee[swingLeg].safeHull[v]);
+          endSupportHull.push_back(candidates[i].pose2D * state.ee[swingLeg].safeHull[v]);
         }
         mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
@@ -300,6 +303,17 @@ namespace actkin_balancer{
           mathutil::calcConvexHull(enddcm,enddcm);
 
           std::vector<Eigen::Vector2d> intersect = mathutil::calcIntersectConvexHull(enddcm, endSupportHull);
+
+          if(candidates[i].theta > -0.05 && candidates[i].theta < 0.05) {
+            std::cerr << "t" << t << std::endl;
+            std::cerr << "p" << candidates[i].p.transpose() << std::endl;
+            std::cerr << "enddcm" << std::endl;
+            for(int I=0;I<enddcm.size();I++) std::cerr << enddcm[I].transpose() << std::endl;
+            std::cerr << "endSupportHull" << std::endl;
+            for(int I=0;I<endSupportHull.size();I++) std::cerr << endSupportHull[I].transpose() << std::endl;
+            std::cerr << "intersect" << std::endl;
+            for(int I=0;I<intersect.size();I++) std::cerr << intersect[I].transpose() << std::endl;
+          }
           if(intersect.size() != 0) capturableTime.push_back(t);
 
           if(t>=candidates[i].maxTime) break;
@@ -332,7 +346,7 @@ namespace actkin_balancer{
           }
 
           int supportLeg = candidates[i].supportLeg;
-          int swingLeg = candidates[i].supportLeg == RLEG ? LLEG : RLEG;
+          int swingLeg = (candidates[i].supportLeg == RLEG) ? LLEG : RLEG;
           Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
           Eigen::Vector2d dir = dcm.normalized(); // capturbleでないのでnormは必ず!=0
           Eigen::Vector2d swingp = legCoords2D[supportLeg].inverse() * legCoords2D[swingLeg].translation(); //支持脚相対
@@ -402,7 +416,7 @@ namespace actkin_balancer{
         }
 
         int supportLeg = candidates[i].supportLeg;
-        int swingLeg = candidates[i].supportLeg == RLEG ? LLEG : RLEG;
+        int swingLeg = (candidates[i].supportLeg == RLEG) ? LLEG : RLEG;
         double currentTheta = Eigen::Rotation2Dd(legCoords2D[supportLeg].linear().inverse() * legCoords2D[swingLeg].linear()).smallestAngle(); // 支持脚相対
         double currentError = std::abs(currentTheta - defaultTheta[swingLeg]);
         double endTheta = candidates[i].theta; // 支持脚相対
@@ -442,10 +456,8 @@ namespace actkin_balancer{
         }
 
         int supportLeg = candidates[i].supportLeg;
-        int swingLeg = candidates[i].supportLeg == RLEG ? LLEG : RLEG;
-        cnoid::Isometry3 targetPose; // world frame
-        targetPose.translation() = legCoordsHorizontal[supportLeg] * candidates[i].p;
-        targetPose.linear() = legCoordsHorizontal[supportLeg].linear() * cnoid::AngleAxisd(candidates[i].theta, cnoid::Vector3::UnitZ());
+        int swingLeg = (candidates[i].supportLeg == RLEG) ? LLEG : RLEG;
+        cnoid::Isometry3 targetPose = legCoordsHorizontal[supportLeg] * candidates[i].pose; // world frame
 
         std::vector<cnoid::Isometry3> path;
         std::vector<double> time;
@@ -529,10 +541,8 @@ namespace actkin_balancer{
         contact = true;
         contactPose = legCoords[leg];
       }else{
-        int supportLeg = leg == RLEG ? LLEG : RLEG;
-        cnoid::Isometry3 targetPose; // world frame
-        targetPose.translation() = legCoordsHorizontal[target.supportLeg] * target.p;
-        targetPose.linear() = legCoordsHorizontal[target.supportLeg].linear() * cnoid::AngleAxisd(target.theta, cnoid::Vector3::UnitZ());
+        int supportLeg = (leg == RLEG) ? LLEG : RLEG;
+        cnoid::Isometry3 targetPose = legCoordsHorizontal[target.supportLeg] * target.pose; // world frame
 
         std::vector<cnoid::Isometry3> path; // world frame
         std::vector<double> time;
@@ -610,10 +620,8 @@ namespace actkin_balancer{
           footOrigin = mathutil::orientCoordToAxis(mathutil::calcMidCoords(legCoords,std::vector<double>{0.5,0.5}),cnoid::Vector3::UnitZ());
         }else{
           time = target.minTime;
-          int swingLeg = target.supportLeg == RLEG ? LLEG : RLEG;
-          cnoid::Isometry3 targetPose;
-          targetPose.translation() = legCoordsHorizontal[target.supportLeg] * target.p;
-          targetPose.linear() = legCoordsHorizontal[target.supportLeg].linear() * cnoid::AngleAxisd(target.theta, cnoid::Vector3::UnitZ());
+          int swingLeg = (target.supportLeg == RLEG) ? LLEG : RLEG;
+          cnoid::Isometry3 targetPose = legCoordsHorizontal[target.supportLeg] * target.pose;// worldframe
           footOrigin = mathutil::orientCoordToAxis(mathutil::calcMidCoords(std::vector<cnoid::Isometry3>{legCoords[target.supportLeg],targetPose},
                                                                             std::vector<double>{0.5,0.5}),cnoid::Vector3::UnitZ());
         }
@@ -639,10 +647,8 @@ namespace actkin_balancer{
       p[2] += state.g / std::pow(std::sqrt(state.g / nominal.nominalZ),2);
       output.vrpGoals[0].trajectory[0].point = p;
     }else{
-      int swingLeg = target.supportLeg == RLEG ? LLEG : RLEG;
-      cnoid::Isometry3 targetPose;
-      targetPose.translation() = legCoordsHorizontal[target.supportLeg] * target.p;
-      targetPose.linear() = legCoordsHorizontal[target.supportLeg].linear() * cnoid::AngleAxisd(target.theta, cnoid::Vector3::UnitZ());
+      int swingLeg = (target.supportLeg == RLEG) ? LLEG : RLEG;
+      cnoid::Isometry3 targetPose = legCoordsHorizontal[target.supportLeg] * target.pose; //world frame
 
       output.vrpGoals[0].trajectory.resize(3);
       output.vrpGoals[0].trajectory[0].time = 0.0;
@@ -665,7 +671,7 @@ namespace actkin_balancer{
 
   void FootStepGenerator::calcRealStrideLimitationHull(const int& swingLeg, const double& theta, const State& state, const std::vector<Eigen::Vector2d>& strideLimitationHull,
                                                        std::vector<Eigen::Vector2d>& realStrideLimitationHull) const {
-    int supportLeg = swingLeg == RLEG ? LLEG : RLEG;
+    int supportLeg = (swingLeg == RLEG) ? LLEG : RLEG;
     cnoid::Matrix2d swingR = Eigen::Rotation2Dd(theta).toRotationMatrix();
 
     realStrideLimitationHull = strideLimitationHull;
@@ -739,6 +745,7 @@ namespace actkin_balancer{
      */
 
     std::vector<cnoid::Isometry3> legCoords{state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose, state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose};
+    int supportLeg = (swingLeg == RLEG) ? LLEG : RLEG;
 
     cnoid::Isometry3 p1 = cnoid::Isometry3::Identity();
     double t1 = 0.0;
@@ -767,7 +774,7 @@ namespace actkin_balancer{
         reqZ = std::max(reqZ, target.translation()[2] + state.ee[swingLeg].stepHeight);
 
         // 現在位置のheightmap+heightのZよりも低い位置にいるなら上昇
-        reqZ = std::max(reqZ, 0.0 + state.ee[swingLeg].stepHeight); // TODO heightmapから取得
+        reqZ = std::max(reqZ, legCoords[supportLeg].translation()[2] + state.ee[swingLeg].stepHeight); // TODO heightmapから取得
 
         t1 = (reqZ - legCoords[swingLeg].translation()[2]) / state.ee[swingLeg].maxSwingLiftVelocity;
         p1.translation().head<2>() = legCoords[swingLeg].translation().head<2>();
@@ -799,18 +806,16 @@ namespace actkin_balancer{
       if(t1 + t2 < reqTime){
         if(t1 + t2 == 0){
           t2 = reqTime;
-          p2.linear() = target.linear();
-          p3.linear() = target.linear();
         }else{
           ratio = reqTime / (t1 + t2);
           t1 *= ratio;
           t2 *= ratio;
-          p1 = mathutil::calcMidRot(std::vector<cnoid::Matrix3>{legCoords[swingLeg].linear(),target.linear()},
-                                    std::vector<double>{t1,t2});
-          p2.linear() = target.linear();
-          p3.linear() = target.linear();
         }
       }
+      p1.linear() = mathutil::calcMidRot(std::vector<cnoid::Matrix3>{legCoords[swingLeg].linear(),target.linear()},
+                                         std::vector<double>{t2,t1});
+      p2.linear() = target.linear();
+      p3.linear() = target.linear();
     }
 
     // 延長してrefTimeに近づける.
@@ -852,6 +857,12 @@ namespace actkin_balancer{
     t += t3;
     path.push_back(p3);
     time.push_back(t);
+
+    // std::cerr << "path" << supportLeg << std::endl;
+    // std::cerr << legCoords[swingLeg].translation().transpose() << std::endl;
+    // for(int i=0;i<path.size();i++){
+    //   std::cerr << time[i] << " " << path[i].translation().transpose() << " " << std::abs(cnoid::AngleAxisd(legCoords[swingLeg].linear().inverse() * path[i].linear()).angle()) << std::endl;
+    // }
 
     return;
   }

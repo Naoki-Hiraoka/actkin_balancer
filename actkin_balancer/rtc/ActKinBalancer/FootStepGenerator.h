@@ -26,6 +26,8 @@ namespace actkin_balancer {
       bool keepDouble = true; // CPがsupportLegに乗るまで両足支持で待つ. supportLeg==NUM_LEGSなら使用しない
       cnoid::Vector3 p; // swingLegの着地位置. 支持脚相対. 要素数は1以上. supportLeg==NUM_LEGSなら使用しない
       double theta = 0.0; // swingLegの着地角度. 支持脚相対. supportLeg==NUM_LEGSなら使用しない
+      cnoid::Isometry3 pose = cnoid::Isometry3::Identity(); // 支持脚相対. pとthetaと重複
+      Eigen::Isometry2d pose2D = Eigen::Isometry2d::Identity(); // 支持脚相対. pとthetaと重複
       double minTime = 0.0;
       double maxTime = 0.0; // 要素数2. swingLegがdetachしてから着地するまでの時間の領域. supportLeg==NUM_LEGSなら使用しない
 

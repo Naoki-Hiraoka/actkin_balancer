@@ -47,7 +47,7 @@ namespace actkin_balancer{
 
     double maxSwingXYVelocity = 1.0; // 0より大きい. 単位[m/s].
     double maxSwingLandVelocity = 0.5; // 0より大きい[m/s]. touchVelと同じくらい?
-    double maxSwingLiftVelocity = 0.14; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
+    double maxSwingLiftVelocity = 0.5; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
     double maxSwingThetaVelocity = 1.0; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
     double strideLimitationMinTheta = -0.785398; // footstepの下限. 支持脚相対. default -45[deg]. 0以下. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
