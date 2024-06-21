@@ -10,6 +10,12 @@ namespace actkin_balancer{
     this->initialCandidateBoth = std::make_shared<FootStepCandidate>();
     this->initialCandidateBoth->supportLeg = NUM_LEGS;
 
+    for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
+      this->initialCandidateCurrent[supportLeg] = std::make_shared<FootStepCandidate>();
+      this->initialCandidateCurrent[supportLeg]->supportLeg = supportLeg;
+      this->initialCandidateCurrent[supportLeg]->keepDouble = false;
+    }
+
     this->initialCandidates.clear();
     this->initialCandidates.resize(NUM_LEGS);
     this->initialCandidatesDouble.clear();
@@ -165,7 +171,7 @@ namespace actkin_balancer{
 
     // stride limitationで初期化. minTimeとmaxTimeを初期化
     {
-      candidates.reserve(this->initialCandidates[RLEG].size()*2 + this->initialCandidates[LLEG].size()*2 + 1);
+      candidates.reserve(this->initialCandidates[RLEG].size()*2 + this->initialCandidates[LLEG].size()*2 + 3);
 
       if(state.actContact[RLEG] && state.actContact[LLEG]) {
         candidates.push_back(this->initialCandidateBoth);
@@ -187,6 +193,14 @@ namespace actkin_balancer{
             candidates.push_back(this->initialCandidatesDouble[supportLeg][i]);
           }
         }
+
+        this->initialCandidateCurrent[supportLeg]->p = legCoordsHorizontal[supportLeg].inverse() * legCoords[swingLeg].translation();
+        this->initialCandidateCurrent[supportLeg]->theta = Eigen::Rotation2Dd(legCoords2D[supportLeg].linear().inverse() * legCoords2D[swingLeg].linear()).smallestAngle();
+        this->initialCandidateCurrent[supportLeg]->pose = legCoordsHorizontal[supportLeg].inverse() * legCoords[swingLeg];
+        this->initialCandidateCurrent[supportLeg]->pose2D = legCoords2D[supportLeg].inverse() * legCoords2D[swingLeg];
+        this->initialCandidateCurrent[supportLeg]->minTime = 0.0;
+        this->initialCandidateCurrent[supportLeg]->maxTime = state.ee[swingLeg].maxSwingTime;
+        candidates.push_back(this->initialCandidateCurrent[supportLeg]);
       }
 
       nextCandidates.reserve(candidates.size());
@@ -686,7 +700,7 @@ namespace actkin_balancer{
     }
     if(debugLevel >= 3) {
       for(int i=0;i<candidates.size();i++){
-        std::cerr << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
+        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
       }
     }
     if(this->debugLevel >= 1) std::cerr << "default pos: " << timer.measure() << "[s]." << std::endl;
@@ -748,7 +762,7 @@ namespace actkin_balancer{
     }
     if(debugLevel >= 3) {
       for(int i=0;i<candidates.size();i++){
-        std::cerr << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
+        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
       }
     }
     if(this->debugLevel >= 1) std::cerr << "default time: " << timer.measure() << "[s]." << std::endl;
@@ -762,11 +776,6 @@ namespace actkin_balancer{
       for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
         Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
 
-        std::cerr << dcm.transpose() << std::endl;
-        for(int i=0;i<state.ee[supportLeg].safeHull.size();i++){
-          std::cerr << state.ee[supportLeg].safeHull[i].transpose() << std::endl;
-        }
-        std::cerr << mathutil::isInsideHull(dcm, state.ee[supportLeg].safeHull) << std::endl;
         if(mathutil::isInsideHull(dcm, state.ee[supportLeg].safeHull)) onleg[supportLeg] = true;
         else onleg[supportLeg] = false;
       }
@@ -806,7 +815,7 @@ namespace actkin_balancer{
     }
     if(debugLevel >= 3) {
       for(int i=0;i<candidates.size();i++){
-        std::cerr << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
+        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
       }
     }
 
@@ -818,7 +827,7 @@ namespace actkin_balancer{
     if(debugLevel >= 2) {
       std::cerr << "target " << target->supportLeg << std::endl;
       if(target->supportLeg != NUM_LEGS){
-        std::cerr << target->minTime << " " << target->p.transpose() << " " << target->theta << " " << target->keepDouble << std::endl;
+        std::cerr << target->supportLeg << " " << target->minTime << " " << target->p.transpose() << " " << target->theta << " " << target->keepDouble << std::endl;
       }
     }
 

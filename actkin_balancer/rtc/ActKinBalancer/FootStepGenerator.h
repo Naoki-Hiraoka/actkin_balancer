@@ -37,6 +37,8 @@ namespace actkin_balancer {
     std::vector<std::vector<std::shared_ptr<FootStepCandidate> > > initialCandidates = std::vector<std::vector<std::shared_ptr<FootStepCandidate> > >(NUM_LEGS); // supportLegがrleg/lleg. keepDoubleはfalse
     std::vector<std::vector<std::shared_ptr<FootStepCandidate> > > initialCandidatesDouble = std::vector<std::vector<std::shared_ptr<FootStepCandidate> > >(NUM_LEGS); // supportLegがrleg/lleg. keepDoubleはtrue
 
+    std::vector<std::shared_ptr<FootStepCandidate> > initialCandidateCurrent = std::vector<std::shared_ptr<FootStepCandidate> >(NUM_LEGS); // supportLegがrleg/lleg. keepDoubleはfalse. pとthetaが変更される.
+
     mutable std::shared_ptr<FootStepCandidate> prevTarget = nullptr;
   };
 
