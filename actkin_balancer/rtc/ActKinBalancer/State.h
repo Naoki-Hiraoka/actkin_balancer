@@ -37,13 +37,13 @@ namespace actkin_balancer{
     std::string name = "rleg";
     cnoid::LinkPtr parentLink = nullptr;
     cnoid::Isometry3 localPose = cnoid::Isometry3::Identity(); // Parent Link Frame. クロスできたりジャンプできたりする脚でないと左右方向(外側向き)の着地位置修正は難しいので、その方向に転びそうになることが極力ないように内側にlocalPoseをオフセットさせておくとよい.
-    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.115,0.065),Eigen::Vector2d(-0.095,0.065),Eigen::Vector2d(-0.095,-0.065),Eigen::Vector2d(0.115,-0.065)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  3点以上必要.
-    std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.075,0.055),Eigen::Vector2d(-0.075,0.055),Eigen::Vector2d(-0.075,-0.055),Eigen::Vector2d(0.075,-0.055)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下
+    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.1,0.06),Eigen::Vector2d(-0.1,0.06),Eigen::Vector2d(-0.1,-0.06),Eigen::Vector2d(0.1,-0.06)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  3点以上必要.
+    std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.05,0.04),Eigen::Vector2d(-0.05,0.04),Eigen::Vector2d(-0.05,-0.04),Eigen::Vector2d(0.05,-0.04)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下
 
     // stride parameters
     cnoid::Vector3 defaultTranslatePos = cnoid::Vector3{0.0,-0.1,0.0}; // 右脚と左脚の中心からの右脚の相対位置.([m]). Z座標は0でなければならない.
     std::vector<Eigen::Vector2d> defaultStrideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.15,-0.18),Eigen::Vector2d(-0.15,-0.18),Eigen::Vector2d(-0.15,-0.35),Eigen::Vector2d(0.15,-0.35)}; // 単位[m]. defaultのfootstepの、遊脚のエンドエフェクタの着地位置の範囲の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はlegHullとlegCollisionMarginを用いて別で評価されるので、defaultStrideLimitationHullでは考慮しなくて良い. 左右方向にsteppable regionをまたぐ場合は、これのY成分が大きくないと後ろ足がまたげない
-    double defaultSwingVelocityRatio = 0.5; // 0~1. maxSwingVelocityの何倍か
+    double defaultSwingVelocityRatio = 1.0; // 0~1. maxSwingVelocityの何倍か
 
     double maxSwingXYVelocity = 1.0; // 0より大きい. 単位[m/s].
     double maxSwingLandVelocity = 0.5; // 0より大きい[m/s]. touchVelと同じくらい?
@@ -51,7 +51,7 @@ namespace actkin_balancer{
     double maxSwingThetaVelocity = 1.0; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799 + 0.01; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
     double strideLimitationMinTheta = -0.785398 - 0.01; // footstepの下限. 支持脚相対. default -45[deg]. 0以下. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
-    std::vector<Eigen::Vector2d> strideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.35,-0.15),Eigen::Vector2d(-0.35,-0.15),Eigen::Vector2d(-0.35,-0.350),Eigen::Vector2d(-0.20,-0.45),Eigen::Vector2d(0.20,-0.45),Eigen::Vector2d(0.35,-0.350)}; // footstepの上下限の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はhullとcollisionMarginを用いて別で評価されるので、strideLimitationHullでは考慮しなくて良い. 斜め方向の角を削るなどして、IKが解けるようにせよ.
+    std::vector<Eigen::Vector2d> strideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.45,-0.15),Eigen::Vector2d(-0.45,-0.15),Eigen::Vector2d(-0.45,-0.350),Eigen::Vector2d(-0.20,-0.45),Eigen::Vector2d(0.20,-0.45),Eigen::Vector2d(0.45,-0.350)}; // footstepの上下限の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はhullとcollisionMarginを用いて別で評価されるので、strideLimitationHullでは考慮しなくて良い. 斜め方向の角を削るなどして、IKが解けるようにせよ.
     double collisionMargin = 0.02; // [m]. 左右の足のhullがこの距離以上離れるようにする. 0以上.
     double maxLandingHeight = 0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの上限(自己干渉やIKの考慮が含まれる).
     double minLandingHeight = -0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの下限(自己干渉やIKの考慮が含まれる).
@@ -64,11 +64,11 @@ namespace actkin_balancer{
     double liftXYThre2 = 0.05; // [m]
     double liftThetaThre = 0.087266; // [m] resolution程度に大きくしておく
     double liftRatioThre = 1.0; // 0より大きい
-    double delayTimeOffset = 0.2; // [s]
+    double delayTimeOffset = 0.1; // [s]. 0.2sは実績あり
 
     // 出力用
     double muTrans = 0.5; // 大股で歩くときはZMP-COMの位置関係的に、垂直抗力と並進力の比がそこまで大きな差にならないので、0.1~0.3程度だと足りない場合がある.
-    double muRot = 0.05; // 旋回歩行時に必要なので、小さすぎてはいけない
+    double muRot = 0.03; // 旋回歩行時に必要なので、小さすぎてはいけない
     double regionMargin = 0.05; // legHullの周囲[m]をregionとする
 
     // 出力用 hullから自動計算

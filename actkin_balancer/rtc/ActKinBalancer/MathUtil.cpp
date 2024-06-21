@@ -279,6 +279,31 @@ namespace actkin_balancer {
       return nearestPoint;
     }
 
+    double calcDistanceOfTwoHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q) {
+      if(P.size() == 0 || Q.size() == 0) {
+        return 0.0;
+      }
+
+      double minDistance = std::numeric_limits<double>::max();
+      for(int i=0;i<P.size();i++){
+        Eigen::Vector2d p_ = P[i];
+        Eigen::Vector2d q_ = calcNearestPointOfHull(p_, Q);
+        double distance = (p_ - q_).head<2>().norm();
+        if(distance < minDistance){
+          minDistance = distance;
+        }
+      }
+      for(int i=0;i<Q.size();i++){
+        Eigen::Vector2d q_ = Q[i];
+        Eigen::Vector2d p_ = calcNearestPointOfHull(q_, P);
+        double distance = (p_ - q_).head<2>().norm();
+        if(distance < minDistance){
+          minDistance = distance;
+        }
+      }
+      return minDistance;
+    }
+
     double findExtremes(const std::vector<Eigen::Vector2d> vertices, const Eigen::Vector2d& dir, std::vector<Eigen::Vector2d>& ret) {
       ret.clear();
       double maxValue = - std::numeric_limits<double>::max();

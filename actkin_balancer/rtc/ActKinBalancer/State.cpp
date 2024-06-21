@@ -23,7 +23,7 @@ namespace actkin_balancer{
       this->wrenchld = Eigen::VectorXd::Zero(constraintDim);
       this->wrenchud = 1e10 * Eigen::VectorXd::Ones(constraintDim);
       int idx=0;
-      this->wrenchC(idx,2) = 1.0; this->wrenchld[idx] = 50.0; idx++;
+      this->wrenchC(idx,2) = 1.0; this->wrenchld[idx] = 100.0; idx++;
       this->wrenchC(idx,0) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
       this->wrenchC(idx,0) = -1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
       this->wrenchC(idx,1) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
@@ -71,13 +71,17 @@ namespace actkin_balancer{
     param.localPose.translation()[1] *= -1;
     param.localPose.linear() = param.localPose.linear().inverse(); // rx.ry=0と仮定している
     for(int i=0;i<param.hull.size();i++) param.hull[i][1] *= -1;
+    std::reverse(param.hull.begin(), param.hull.end());
     for(int i=0;i<param.safeHull.size();i++) param.safeHull[i][1] *= -1;
+    std::reverse(param.safeHull.begin(), param.safeHull.end());
     param.defaultTranslatePos[1] *= -1;
     for(int i=0;i<param.defaultStrideLimitationHull.size();i++) param.defaultStrideLimitationHull[i][1] *= -1;
+    std::reverse(param.defaultStrideLimitationHull.begin(), param.defaultStrideLimitationHull.end());
     std::swap(param.strideLimitationMaxTheta, param.strideLimitationMinTheta);
     param.strideLimitationMaxTheta *= -1;
     param.strideLimitationMinTheta *= -1;
     for(int i=0;i<param.strideLimitationHull.size();i++) param.strideLimitationHull[i][1] *= -1;
+    std::reverse(param.strideLimitationHull.begin(), param.strideLimitationHull.end());
     for(int i=0;i<param.wrenchC.rows();i++){
       param.wrenchC(i,1) *= -1;
       param.wrenchC(i,3) *= -1;

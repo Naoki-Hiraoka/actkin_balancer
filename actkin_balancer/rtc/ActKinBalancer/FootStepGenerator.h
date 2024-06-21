@@ -14,7 +14,7 @@ namespace actkin_balancer {
     void calcFootSteps(const State& state, const Goal& goal, const std::string& instance_name, double dt,
                        Output& output) const;
 
-    int debugLevel = 2;
+    int debugLevel = 3;
   protected:
     void calcRealStrideLimitationHull(const int& swingLeg, const double& theta, const State& state, const std::vector<Eigen::Vector2d>& strideLimitationHull,
                                       std::vector<Eigen::Vector2d>& realStrideLimitationHull) const;
@@ -36,6 +36,8 @@ namespace actkin_balancer {
     std::shared_ptr<FootStepCandidate> initialCandidateBoth; // supportLegがNUM_LEGS
     std::vector<std::vector<std::shared_ptr<FootStepCandidate> > > initialCandidates = std::vector<std::vector<std::shared_ptr<FootStepCandidate> > >(NUM_LEGS); // supportLegがrleg/lleg. keepDoubleはfalse
     std::vector<std::vector<std::shared_ptr<FootStepCandidate> > > initialCandidatesDouble = std::vector<std::vector<std::shared_ptr<FootStepCandidate> > >(NUM_LEGS); // supportLegがrleg/lleg. keepDoubleはtrue
+
+    mutable std::shared_ptr<FootStepCandidate> prevTarget = nullptr;
   };
 
 };
