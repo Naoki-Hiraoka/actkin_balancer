@@ -245,10 +245,11 @@ namespace actkin_balancer{
              // 重心より低い
              p[2] < this->robot->centerOfMass()[2]
              ){
-            points.push_back(p.head<2>() + Eigen::Vector2d(this->ee[LEG].contactMargin,this->ee[LEG].contactMargin));
-            points.push_back(p.head<2>() + Eigen::Vector2d(-this->ee[LEG].contactMargin,this->ee[LEG].contactMargin));
-            points.push_back(p.head<2>() + Eigen::Vector2d(-this->ee[LEG].contactMargin,-this->ee[LEG].contactMargin));
-            points.push_back(p.head<2>() + Eigen::Vector2d(this->ee[LEG].contactMargin,-this->ee[LEG].contactMargin));
+            cnoid::Vector3 pLocal = poseInv * p; // endefffector frame
+            points.push_back(pLocal.head<2>() + Eigen::Vector2d(this->ee[LEG].contactMargin,this->ee[LEG].contactMargin));
+            points.push_back(pLocal.head<2>() + Eigen::Vector2d(-this->ee[LEG].contactMargin,this->ee[LEG].contactMargin));
+            points.push_back(pLocal.head<2>() + Eigen::Vector2d(-this->ee[LEG].contactMargin,-this->ee[LEG].contactMargin));
+            points.push_back(pLocal.head<2>() + Eigen::Vector2d(this->ee[LEG].contactMargin,-this->ee[LEG].contactMargin));
           }
         }
       }

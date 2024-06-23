@@ -130,7 +130,7 @@ namespace actkin_balancer{
 
     // legContacts.     // これは毎周期変更される
     std::vector<bool> actContact = std::vector<bool>{false,false};// rleg, lleg. contactsから計算されるactual contact
-    std::vector<std::vector<Eigen::Vector2d> > surface; // rleg/lleg. endeffector frame.半時計回り
+    std::vector<std::vector<Eigen::Vector2d> > surface = std::vector<std::vector<Eigen::Vector2d> >(2); // rleg/lleg. endeffector frame.半時計回り
 
   public:
     std::unordered_map<std::string, cnoid::LinkPtr> nameLinkMap; // MODE_ABC中はconstant. URDFのLink名 -> linkPtr

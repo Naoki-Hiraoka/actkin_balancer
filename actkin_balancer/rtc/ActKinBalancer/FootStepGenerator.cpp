@@ -403,9 +403,7 @@ namespace actkin_balancer{
         for(int v=0;v<state.surface[supportLeg].size();v++){
           endSupportHull.push_back(state.surface[supportLeg][v]);
         }
-        for(int v=0;v<state.surface[swingLeg].size();v++){
-          endSupportHull.push_back(candidates[i]->p.head<2>());
-        }
+        endSupportHull.push_back(candidates[i]->p.head<2>());
         mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
         std::vector<double> capturableTime;
@@ -494,8 +492,8 @@ namespace actkin_balancer{
           for(int v=0;v<state.surface[supportLeg].size();v++){
             endSupportHull.push_back(state.surface[supportLeg][v]);
           }
-          for(int v=0;v<state.surface[swingLeg].size();v++){
-            endSupportHull.push_back(candidates[i]->pose2D * state.surface[swingLeg][v]);
+          for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
+            endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].safeHull[v]);
           }
           mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
