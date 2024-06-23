@@ -38,8 +38,8 @@ namespace actkin_balancer{
     std::string name = "rleg";
     cnoid::LinkPtr parentLink = nullptr;
     cnoid::Isometry3 localPose = cnoid::Isometry3::Identity(); // Parent Link Frame. クロスできたりジャンプできたりする脚でないと左右方向(外側向き)の着地位置修正は難しいので、その方向に転びそうになることが極力ないように内側にlocalPoseをオフセットさせておくとよい.
-    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.1,0.05),Eigen::Vector2d(-0.1,0.05),Eigen::Vector2d(-0.1,-0.05),Eigen::Vector2d(0.1,-0.05)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  3点以上必要.
-    std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.05,0.04),Eigen::Vector2d(-0.05,0.04),Eigen::Vector2d(-0.05,-0.04),Eigen::Vector2d(0.05,-0.04)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下
+    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.1,0.05),Eigen::Vector2d(-0.1,0.05),Eigen::Vector2d(-0.1,-0.05),Eigen::Vector2d(0.1,-0.05)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  面積が0でない.
+    std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.05,0.04),Eigen::Vector2d(-0.05,0.04),Eigen::Vector2d(-0.05,-0.04),Eigen::Vector2d(0.05,-0.04)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下.
 
     // stride parameters
     cnoid::Vector3 defaultTranslatePos = cnoid::Vector3{0.0,-0.1,0.0}; // 右脚と左脚の中心からの右脚の相対位置.([m]). Z座標は0でなければならない.
@@ -48,7 +48,7 @@ namespace actkin_balancer{
 
     double maxSwingXYVelocity = 1.0; // 0より大きい. 単位[m/s].
     double maxSwingLandVelocity = 0.5; // 0より大きい[m/s]. touchVelと同じくらい?
-    double maxSwingLiftVelocity = 0.5; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
+    double maxSwingLiftVelocity = 1.5; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
     double maxSwingThetaVelocity = 1.5; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799 + 0.01; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
     double strideLimitationMinTheta = -0.785398 - 0.01; // footstepの下限. 支持脚相対. default -45[deg]. 0以下. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
@@ -68,12 +68,13 @@ namespace actkin_balancer{
     double delayTimeOffset = 0.1; // [s]. 0.2sは実績あり
     double contactDetectionThreshold = 50.0;
     double contactDetectionThreshold2 = 10.0;
-    double stepHeight = 0.05; // footstepの足上げ高さ[m]. 0以上
-    double contactMargin = 0.05;
+    double stepHeight = 0.08; // footstepの足上げ高さ[m]. 0以上. カメラがあるなら0.05. ないなら0.08
+    double contactMargin = 0.02;
+    Eigen::Vector2d copOffset = Eigen::Vector2d(0.0,0.02);
 
     // 出力用
     double muTrans = 0.5; // 大股で歩くときはZMP-COMの位置関係的に、垂直抗力と並進力の比がそこまで大きな差にならないので、0.1~0.3程度だと足りない場合がある.
-    double muRot = 0.0005; // 旋回歩行時に必要なので、小さすぎてはいけない
+    double muRot = 0.05; // 旋回歩行時に必要なので、小さすぎてはいけない
     double minFz = 50.0;
     double maxFz = 2000.0;
     double regionMargin = 0.05; // legHullの周囲[m]をregionとする

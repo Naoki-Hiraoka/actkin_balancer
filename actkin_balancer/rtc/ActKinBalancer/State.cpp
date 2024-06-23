@@ -54,6 +54,7 @@ namespace actkin_balancer{
     for(int i=0;i<param.region.C.rows();i++){
       param.region.C(i,1) *= -1;
     }
+    param.copOffset[1] *= -1;
   }
 
   bool NominalEE::updateFromIdl(const State& state, const actkin_balancer::ActKinBalancerService::NominalEEIdl& idl){

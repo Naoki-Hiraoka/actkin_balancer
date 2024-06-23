@@ -14,7 +14,7 @@ namespace actkin_balancer {
     void calcFootSteps(const State& state, const Goal& goal, const std::string& instance_name, double dt,
                        Output& output) const;
 
-    int debugLevel = 3;
+    int debugLevel = 0;
   protected:
     void calcRealStrideLimitationHull(const int& swingLeg, const double& theta, const State& state, const std::vector<Eigen::Vector2d>& strideLimitationHull,
                                       std::vector<Eigen::Vector2d>& realStrideLimitationHull) const;

@@ -403,7 +403,10 @@ namespace actkin_balancer{
         for(int v=0;v<state.surface[supportLeg].size();v++){
           endSupportHull.push_back(state.surface[supportLeg][v]);
         }
-        endSupportHull.push_back(candidates[i]->p.head<2>());
+        endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].copOffset);
+        for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
+          endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].safeHull[v]);
+        }
         mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
         std::vector<double> capturableTime;
@@ -695,8 +698,6 @@ namespace actkin_balancer{
     // default stepで絞り込み.
     // posがcurerntよりもどれだけ近づくか
     {
-      std::cerr << defaultp[RLEG].transpose() << std::endl;
-      std::cerr << defaultp[LLEG].transpose() << std::endl;
       double maxDistance = - std::numeric_limits<double>::max(); // 近づいた距離
       nextCandidates.clear();
       for(int i=0;i<candidates.size();i++){
@@ -907,7 +908,8 @@ namespace actkin_balancer{
       output.eeGoals.back().frameLink = nullptr;
       output.eeGoals.back().framePose.setIdentity();
       for(int i=0;i<6;i++) output.eeGoals.back().freeAxis[i] = false;
-      output.eeGoals.back().priority = 1;
+      //output.eeGoals.back().priority = 1;
+      output.eeGoals.back().priority = 0;
 
       bool contact = false;
       cnoid::Isometry3 contactPose = cnoid::Isometry3::Identity();
@@ -962,8 +964,10 @@ namespace actkin_balancer{
           path.insert(path.begin(), p);
         }
         output.eeGoals.back().trajectory.resize(path.size());
+        double prevTime = 0.0;
         for(int i=0;i<path.size();i++){
-          output.eeGoals.back().trajectory[i].time = time[i];
+          output.eeGoals.back().trajectory[i].time = time[i] - prevTime;
+          prevTime = time[i];
           output.eeGoals.back().trajectory[i].pose = path[i];
         }
       }
@@ -1014,7 +1018,7 @@ namespace actkin_balancer{
           footOrigin = mathutil::orientCoordToAxis(mathutil::calcMidCoords(std::vector<cnoid::Isometry3>{legCoords[target->supportLeg],targetPose},
                                                                             std::vector<double>{0.5,0.5}),cnoid::Vector3::UnitZ());
         }
-        output.eeGoals.back().trajectory[0].time = time + nominal.nominalEE[i].time;
+        output.eeGoals.back().trajectory[0].time = std::max(time, nominal.nominalEE[i].time);
         output.eeGoals.back().trajectory[0].pose = footOrigin * nominal.nominalEE[i].pose;
       }
     }
@@ -1033,6 +1037,7 @@ namespace actkin_balancer{
       output.vrpGoals[0].trajectory.resize(1);
       output.vrpGoals[0].trajectory[0].time = 0.0;
       cnoid::Vector3 p = legCoords[target->supportLeg].translation();
+      p.head<2>() += legCoords2D[target->supportLeg].linear() * state.ee[target->supportLeg].copOffset;
       p[2] += state.g / std::pow(std::sqrt(state.g / nominal.nominalZ),2);
       output.vrpGoals[0].trajectory[0].point = p;
     }else{
@@ -1042,14 +1047,16 @@ namespace actkin_balancer{
       output.vrpGoals[0].trajectory.resize(3);
       output.vrpGoals[0].trajectory[0].time = 0.0;
       cnoid::Vector3 p = legCoords[target->supportLeg].translation();
+      p.head<2>() += legCoords2D[target->supportLeg].linear() * state.ee[target->supportLeg].copOffset;
       p[2] += state.g / std::pow(std::sqrt(state.g / nominal.nominalZ),2);
       output.vrpGoals[0].trajectory[0].point = p;
       output.vrpGoals[0].trajectory[1].time = target->minTime;
       output.vrpGoals[0].trajectory[1].point = p;
-      output.vrpGoals[0].trajectory[2].time = target->minTime;
+      output.vrpGoals[0].trajectory[2].time = 0.0;
       cnoid::Vector3 p2 = targetPose.translation();
+      p2.head<2>() += legCoords2D[target->supportLeg].linear() * target->pose2D.linear() * state.ee[swingLeg].copOffset;
       p2[2] += state.g / std::pow(std::sqrt(state.g / nominal.nominalZ),2);
-      output.vrpGoals[0].trajectory[2].point = p;
+      output.vrpGoals[0].trajectory[2].point = p2;
     }
 
     if(preferable) output.feasibility = Feasibility::FEASIBLE;
