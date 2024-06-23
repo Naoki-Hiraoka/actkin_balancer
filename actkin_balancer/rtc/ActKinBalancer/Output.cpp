@@ -54,9 +54,14 @@ namespace actkin_balancer {
       eigen_rtm_conversions::matrixEigenToRTM(this->contactGoals[i].region.C, m_refState.refContact[i].region.C);
       eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].region.ld, m_refState.refContact[i].region.ld);
       eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].region.ud, m_refState.refContact[i].region.ud);
-      eigen_rtm_conversions::matrixEigenToRTM(this->contactGoals[i].wrenchC, m_refState.refContact[i].wrenchC);
-      eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].wrenchld, m_refState.refContact[i].wrenchld);
-      eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].wrenchud, m_refState.refContact[i].wrenchud);
+      m_refState.refContact[i].muTrans = this->contactGoals[i].muTrans;
+      m_refState.refContact[i].muRot = this->contactGoals[i].muRot;
+      m_refState.refContact[i].minFz = this->contactGoals[i].minFz;
+      m_refState.refContact[i].maxFz = this->contactGoals[i].maxFz;
+      m_refState.refContact[i].surface.length(this->contactGoals[i].surface.size());
+      for(int j=0;j<this->contactGoals[i].surface.size();j++){
+        eigen_rtm_conversions::vectorEigenToRTM(this->contactGoals[i].surface[j], m_refState.refContact[i].surface[j]);
+      }
       eigen_rtm_conversions::poseEigenToRTM(this->contactGoals[i].localPose2, m_refState.refContact[i].localPose2);
     }
 

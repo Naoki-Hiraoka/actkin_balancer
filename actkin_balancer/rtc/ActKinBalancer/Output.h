@@ -57,9 +57,11 @@ namespace actkin_balancer {
     std::vector<bool> freeAxis = std::vector<bool>(6,false); // localPose1 local
     Region3D region; // localPose1 local
 
-    Eigen::MatrixXd wrenchC; // localPose1 frame/origin. link1がlink2から受ける力に関する接触力制約.
-    cnoid::VectorX wrenchld;
-    cnoid::VectorX wrenchud;
+    double muTrans;
+    double muRot;
+    double minFz;
+    double maxFz;
+    std::vector<Eigen::Vector2d> surface; // link1 frame.半時計回り
 
     cnoid::Isometry3 localPose2 = cnoid::Isometry3::Identity();
   };

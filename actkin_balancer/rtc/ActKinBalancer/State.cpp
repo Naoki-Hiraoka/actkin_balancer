@@ -1,4 +1,5 @@
 #include "State.h"
+#include "MathUtil.h"
 #include <iostream>
 #include <rtm_data_tools/rtm_data_tools.h>
 #include <eigen_rtm_conversions/eigen_rtm_conversions.h>
@@ -8,38 +9,6 @@
 
 namespace actkin_balancer{
   void EEParam::updateFromHull() {
-    {
-      // update WrenchC, wrenchld, wrenchud
-      // 0 <  0  0  1  0  0  0 < 1e10
-      // 0 <  1  0 mt  0  0  0 < 1e10
-      // 0 < -1  0 mt  0  0  0 < 1e10
-      // 0 <  0  1 mt  0  0  0 < 1e10
-      // 0 <  0 -1 mt  0  0  0 < 1e10
-      // 0 <  0  0  d r1 r2  0 < 1e10 ;; x hull.size()
-      // 0 <  0  0 mr  0  0  1 < 1e10
-      // 0 <  0  0 mr  0  0 -1 < 1e10
-      int constraintDim = 7 + this->hull.size();
-      this->wrenchC = Eigen::MatrixXd::Zero(constraintDim,6);
-      this->wrenchld = Eigen::VectorXd::Zero(constraintDim);
-      this->wrenchud = 1e10 * Eigen::VectorXd::Ones(constraintDim);
-      int idx=0;
-      this->wrenchC(idx,2) = 1.0; this->wrenchld[idx] = 100.0; idx++;
-      this->wrenchC(idx,0) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
-      this->wrenchC(idx,0) = -1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
-      this->wrenchC(idx,1) = 1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
-      this->wrenchC(idx,1) = -1.0; this->wrenchC(idx,2) = this->muTrans; idx++;
-      for(int j=0;j<this->hull.size();j++){
-        Eigen::Vector2d v1 = this->hull[j]; // EEF frame/origin
-        Eigen::Vector2d v2 = this->hull[(j+1<this->hull.size())?j+1:0]; // EEF frame/origin
-        if(v1.head<2>() == v2.head<2>()) continue;
-        Eigen::Vector2d r = Eigen::Vector2d(v2[1]-v1[1],v1[0]-v2[0]).normalized();
-        double d = r.dot(v1);
-        this->wrenchC(idx,2) = d; this->wrenchC(idx,3) = -r[1]; this->wrenchC(idx,4) = r[0]; idx++;
-      }
-      this->wrenchC(idx,5) = 1.0; this->wrenchC(idx,2) = this->muRot; idx++;
-      this->wrenchC(idx,5) = -1.0; this->wrenchC(idx,2) = this->muRot; idx++;
-    }
-
     {
       // update region
       int regionDim = 1 + this->hull.size();
@@ -82,10 +51,6 @@ namespace actkin_balancer{
     param.strideLimitationMinTheta *= -1;
     for(int i=0;i<param.strideLimitationHull.size();i++) param.strideLimitationHull[i][1] *= -1;
     std::reverse(param.strideLimitationHull.begin(), param.strideLimitationHull.end());
-    for(int i=0;i<param.wrenchC.rows();i++){
-      param.wrenchC(i,1) *= -1;
-      param.wrenchC(i,3) *= -1;
-    }
     for(int i=0;i<param.region.C.rows();i++){
       param.region.C(i,1) *= -1;
     }
@@ -255,6 +220,11 @@ namespace actkin_balancer{
       this->contacts[numContact]->link2 = this->nameLinkMap[std::string(m_actContactState.data[i].link2)];
       this->contacts[numContact]->freeX = m_actContactState.data[i].free_x;
       this->contacts[numContact]->freeY = m_actContactState.data[i].free_y;
+      if(!rtm_data_tools::isAllFinite(m_actContactState.data[i].force)){
+        std::cerr << __FUNCTION__ << "force not finite" << std::endl;
+        continue;
+      }
+      eigen_rtm_conversions::vectorRTMToEigen(m_actContactState.data[i].force, this->contacts[numContact]->force);
       numContact++;
     }
     this->contacts.resize(numContact);
@@ -262,7 +232,7 @@ namespace actkin_balancer{
     // update actContacts
     for(int LEG=0;LEG<NUM_LEGS;LEG++){
       cnoid::Isometry3 poseInv = (this->ee[LEG].parentLink->T() * this->ee[LEG].localPose).inverse();
-      this->actContact[LEG] = false;
+      std::vector<Eigen::Vector2d> points; // endeffector local
       for(int i=0;i<this->contacts.size();i++){
         if( ((this->contacts[i]->link1 == this->ee[LEG].parentLink) && (this->contacts[i]->link2 == nullptr)) ||
             ((this->contacts[i]->link1 == nullptr) && (this->contacts[i]->link2 == this->ee[LEG].parentLink)) ) {
@@ -275,12 +245,20 @@ namespace actkin_balancer{
              // 重心より低い
              p[2] < this->robot->centerOfMass()[2]
              ){
-            this->actContact[LEG] = true;
-            break;
+            points.push_back(p.head<2>() + Eigen::Vector2d(this->ee[LEG].contactMargin,this->ee[LEG].contactMargin));
+            points.push_back(p.head<2>() + Eigen::Vector2d(-this->ee[LEG].contactMargin,this->ee[LEG].contactMargin));
+            points.push_back(p.head<2>() + Eigen::Vector2d(-this->ee[LEG].contactMargin,-this->ee[LEG].contactMargin));
+            points.push_back(p.head<2>() + Eigen::Vector2d(this->ee[LEG].contactMargin,-this->ee[LEG].contactMargin));
           }
         }
       }
-
+      mathutil::calcConvexHull(points, points);
+      this->surface[LEG] = mathutil::calcIntersectConvexHull(points, this->ee[LEG].safeHull);
+      if(this->surface[LEG].size() > 0){
+        this->actContact[LEG] = true;
+      }else{
+        this->actContact[LEG] = false;
+      }
     }
   }
 

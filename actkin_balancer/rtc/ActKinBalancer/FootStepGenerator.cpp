@@ -123,11 +123,11 @@ namespace actkin_balancer{
     bool preferable = true;
     // TODO
 
-    std::vector<cnoid::Isometry3> legCoords{state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose, state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose};
+    std::vector<cnoid::Isometry3> legCoords{state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose, state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose}; // world frame
     std::vector<cnoid::Isometry3> legCoordsHorizontal{
       mathutil::orientCoordToAxis(legCoords[RLEG], cnoid::Vector3::UnitZ()),
-      mathutil::orientCoordToAxis(legCoords[LLEG], cnoid::Vector3::UnitZ())};
-    std::vector<Eigen::Isometry2d> legCoords2D(NUM_LEGS);
+      mathutil::orientCoordToAxis(legCoords[LLEG], cnoid::Vector3::UnitZ())};  // world frame
+    std::vector<Eigen::Isometry2d> legCoords2D(NUM_LEGS); // world frame
     for(int leg=0;leg<NUM_LEGS;leg++){
       legCoords2D[leg].translation() = legCoordsHorizontal[leg].translation().head<2>();
       legCoords2D[leg].linear() = legCoordsHorizontal[leg].linear().topLeftCorner<2,2>();
@@ -207,7 +207,13 @@ namespace actkin_balancer{
     }
 
     if(debugLevel >= 2) {
-      std::cerr << "stride limitation " << candidates.size() << std::endl;
+      std::vector<double> num(3,0);
+      for(int i=0;i<candidates.size();i++){
+        num[candidates[i]->supportLeg]++;
+      }
+      std::cerr << "stride limitation " << candidates.size() << " ";
+      for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+      std::cerr << std::endl;
     }
     if(this->debugLevel >= 1) std::cerr << "stride limitation: " << timer.measure() << "[s]." << std::endl;
 
@@ -244,7 +250,13 @@ namespace actkin_balancer{
     }
 
     if(debugLevel >= 2) {
-      std::cerr << "Z " << candidates.size() << std::endl;
+      std::vector<double> num(3,0);
+      for(int i=0;i<candidates.size();i++){
+        num[candidates[i]->supportLeg]++;
+      }
+      std::cerr << "Z " << candidates.size() << " ";
+      for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+      std::cerr << std::endl;
     }
     if(this->debugLevel >= 1) std::cerr << "Z: " << timer.measure() << "[s]." << std::endl;
 
@@ -293,7 +305,13 @@ namespace actkin_balancer{
     }
 
     if(debugLevel >= 2) {
-      std::cerr << "reachable " << candidates.size() << std::endl;
+      std::vector<double> num(3,0);
+      for(int i=0;i<candidates.size();i++){
+        num[candidates[i]->supportLeg]++;
+      }
+      std::cerr << "reachiable " << candidates.size() << " ";
+      for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+      std::cerr << std::endl;
     }
     if(this->debugLevel >= 1) std::cerr << "reachiable: " << timer.measure() << "[s]." << std::endl;
 
@@ -320,7 +338,13 @@ namespace actkin_balancer{
     }
 
     if(debugLevel >= 2) {
-      std::cerr << "steppable " << candidates.size() << std::endl;
+      std::vector<double> num(3,0);
+      for(int i=0;i<candidates.size();i++){
+        num[candidates[i]->supportLeg]++;
+      }
+      std::cerr << "steppable " << candidates.size() << " ";
+      for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+      std::cerr << std::endl;
     }
     if(this->debugLevel >= 1) std::cerr << "steppable: " << timer.measure() << "[s]." << std::endl;
 
@@ -329,11 +353,11 @@ namespace actkin_balancer{
       nextCandidates.clear();
 
       std::vector<Eigen::Vector2d> supportHullBoth; // RLEG相対
-      for(int v=0;v<state.ee[RLEG].safeHull.size();v++){
-        supportHullBoth.push_back(state.ee[RLEG].safeHull[v]);
+      for(int v=0;v<state.surface[RLEG].size();v++){
+        supportHullBoth.push_back(state.surface[RLEG][v]);
       }
-      for(int v=0;v<state.ee[LLEG].safeHull.size();v++){
-        supportHullBoth.push_back(legCoords2D[RLEG].inverse() * legCoords2D[LLEG] * state.ee[LLEG].safeHull[v]);
+      for(int v=0;v<state.surface[LLEG].size();v++){
+        supportHullBoth.push_back(legCoords2D[RLEG].inverse() * legCoords2D[LLEG] * state.surface[LLEG][v]);
       }
       mathutil::calcConvexHull(supportHullBoth,supportHullBoth);
 
@@ -349,8 +373,8 @@ namespace actkin_balancer{
           Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
           for(int i=0;i<samplingTimes.size();i++){
             std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-              Eigen::Vector2d vrp = state.ee[supportLeg].safeHull[v];
+            for(int v=0;v<state.surface[supportLeg].size();v++){
+              Eigen::Vector2d vrp = state.surface[supportLeg][v];
               enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * samplingTimes[i]) + vrp);
             }
             mathutil::calcConvexHull(enddcm,enddcm);
@@ -376,10 +400,10 @@ namespace actkin_balancer{
         int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
         Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚
         std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
-        for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-          endSupportHull.push_back(state.ee[supportLeg].safeHull[v]);
+        for(int v=0;v<state.surface[supportLeg].size();v++){
+          endSupportHull.push_back(state.surface[supportLeg][v]);
         }
-        for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
+        for(int v=0;v<state.surface[swingLeg].size();v++){
           endSupportHull.push_back(candidates[i]->p.head<2>());
         }
         mathutil::calcConvexHull(endSupportHull,endSupportHull);
@@ -388,8 +412,8 @@ namespace actkin_balancer{
         {
           // minTimeの場合
           std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-          for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-            Eigen::Vector2d vrp = state.ee[supportLeg].safeHull[v];
+          for(int v=0;v<state.surface[supportLeg].size();v++){
+            Eigen::Vector2d vrp = state.surface[supportLeg][v];
             enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->minTime) + vrp);
           }
           mathutil::calcConvexHull(enddcm,enddcm);
@@ -402,8 +426,8 @@ namespace actkin_balancer{
           {
             // maxTimeの場合
             std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-              Eigen::Vector2d vrp = state.ee[supportLeg].safeHull[v];
+            for(int v=0;v<state.surface[supportLeg].size();v++){
+              Eigen::Vector2d vrp = state.surface[supportLeg][v];
               enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->maxTime) + vrp);
             }
             mathutil::calcConvexHull(enddcm,enddcm);
@@ -440,13 +464,19 @@ namespace actkin_balancer{
         }
       }
 
-
-      if(debugLevel >= 2) {
-        std::cerr << "capturable(0) " << nextCandidates.size() << std::endl;
-      }
-
       if(nextCandidates.size() > 0.0) {
         candidates = nextCandidates;
+
+        if(debugLevel >= 2) {
+          std::vector<double> num(3,0);
+          for(int i=0;i<candidates.size();i++){
+            num[candidates[i]->supportLeg]++;
+          }
+          std::cerr << "capturable(0) " << candidates.size() << " ";
+          for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+          std::cerr << std::endl;
+        }
+
       }else{
         for(int i=0;i<candidates.size();i++){
           if(candidates[i]->supportLeg == NUM_LEGS ||
@@ -461,11 +491,11 @@ namespace actkin_balancer{
           int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
           Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚
           std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
-          for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-            endSupportHull.push_back(state.ee[supportLeg].safeHull[v]);
+          for(int v=0;v<state.surface[supportLeg].size();v++){
+            endSupportHull.push_back(state.surface[supportLeg][v]);
           }
-          for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
-            endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].safeHull[v]);
+          for(int v=0;v<state.surface[swingLeg].size();v++){
+            endSupportHull.push_back(candidates[i]->pose2D * state.surface[swingLeg][v]);
           }
           mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
@@ -473,8 +503,8 @@ namespace actkin_balancer{
           {
             // minTimeの場合
             std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-              Eigen::Vector2d vrp = state.ee[supportLeg].safeHull[v];
+            for(int v=0;v<state.surface[supportLeg].size();v++){
+              Eigen::Vector2d vrp = state.surface[supportLeg][v];
               enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->minTime) + vrp);
             }
             mathutil::calcConvexHull(enddcm,enddcm);
@@ -487,8 +517,8 @@ namespace actkin_balancer{
             {
               // maxTimeの場合
               std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-              for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-                Eigen::Vector2d vrp = state.ee[supportLeg].safeHull[v];
+              for(int v=0;v<state.surface[supportLeg].size();v++){
+                Eigen::Vector2d vrp = state.surface[supportLeg][v];
                 enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->maxTime) + vrp);
               }
               mathutil::calcConvexHull(enddcm,enddcm);
@@ -525,12 +555,19 @@ namespace actkin_balancer{
           }
         }
 
-        if(debugLevel >= 2) {
-          std::cerr << "capturable(1) " << nextCandidates.size() << std::endl;
-        }
-
         if(nextCandidates.size() > 0.0) {
           candidates = nextCandidates;
+
+          if(debugLevel >= 2) {
+            std::vector<double> num(3,0);
+            for(int i=0;i<candidates.size();i++){
+              num[candidates[i]->supportLeg]++;
+            }
+            std::cerr << "capturable(1) " << candidates.size() << " ";
+            for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+            std::cerr << std::endl;
+          }
+
         }else{
           // この一歩ではcapture不可. DCMとの距離を最小化.
           double minDistance = std::numeric_limits<double>::max();
@@ -545,18 +582,18 @@ namespace actkin_balancer{
             Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
 
             std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
-            for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-              endSupportHull.push_back(state.ee[supportLeg].safeHull[v]);
+            for(int v=0;v<state.surface[supportLeg].size();v++){
+              endSupportHull.push_back(state.surface[supportLeg][v]);
             }
-            for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
-              endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].safeHull[v]);
+            for(int v=0;v<state.surface[swingLeg].size();v++){
+              endSupportHull.push_back(candidates[i]->pose2D * state.surface[swingLeg][v]);
             }
             mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
             // minTime固定
             std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.ee[supportLeg].safeHull.size();v++){
-              Eigen::Vector2d vrp = state.ee[supportLeg].safeHull[v];
+            for(int v=0;v<state.surface[supportLeg].size();v++){
+              Eigen::Vector2d vrp = state.surface[supportLeg][v];
               enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->minTime) + vrp);
             }
             mathutil::calcConvexHull(enddcm,enddcm);
@@ -583,7 +620,13 @@ namespace actkin_balancer{
           }
 
           if(debugLevel >= 2) {
-            std::cerr << "capturable(2) " << candidates.size() << std::endl;
+            std::vector<double> num(3,0);
+            for(int i=0;i<candidates.size();i++){
+              num[candidates[i]->supportLeg]++;
+            }
+            std::cerr << "capturable(2) " << candidates.size() << " ";
+            for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+            std::cerr << std::endl;
           }
         }
       }
@@ -641,13 +684,21 @@ namespace actkin_balancer{
     }
 
     if(debugLevel >= 2) {
-      std::cerr << "default theta " << candidates.size() << std::endl;
+      std::vector<double> num(3,0);
+      for(int i=0;i<candidates.size();i++){
+        num[candidates[i]->supportLeg]++;
+      }
+      std::cerr << "default theta " << candidates.size() << " ";
+      for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
+      std::cerr << std::endl;
     }
     if(this->debugLevel >= 1) std::cerr << "default theta: " << timer.measure() << "[s]." << std::endl;
 
     // default stepで絞り込み.
     // posがcurerntよりもどれだけ近づくか
     {
+      std::cerr << defaultp[RLEG].transpose() << std::endl;
+      std::cerr << defaultp[LLEG].transpose() << std::endl;
       double maxDistance = - std::numeric_limits<double>::max(); // 近づいた距離
       nextCandidates.clear();
       for(int i=0;i<candidates.size();i++){
@@ -776,7 +827,7 @@ namespace actkin_balancer{
       for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
         Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
 
-        if(mathutil::isInsideHull(dcm, state.ee[supportLeg].safeHull)) onleg[supportLeg] = true;
+        if(mathutil::isInsideHull(dcm, state.surface[supportLeg])) onleg[supportLeg] = true;
         else onleg[supportLeg] = false;
       }
 
@@ -927,9 +978,11 @@ namespace actkin_balancer{
         output.contactGoals.back().link2 = nullptr;
         for(int i=0;i<6;i++) output.contactGoals.back().freeAxis[i] = false;
         output.contactGoals.back().region = state.ee[leg].region;
-        output.contactGoals.back().wrenchC = state.ee[leg].wrenchC;
-        output.contactGoals.back().wrenchld = state.ee[leg].wrenchld;
-        output.contactGoals.back().wrenchud = state.ee[leg].wrenchud;
+        output.contactGoals.back().muTrans = state.ee[leg].muTrans;
+        output.contactGoals.back().muRot = state.ee[leg].muRot;
+        output.contactGoals.back().minFz = state.ee[leg].minFz;
+        output.contactGoals.back().maxFz = state.ee[leg].maxFz;
+        output.contactGoals.back().surface = state.ee[leg].hull;
         output.contactGoals.back().localPose2 = contactPose;
       }
     }

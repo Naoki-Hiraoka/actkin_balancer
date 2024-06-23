@@ -28,6 +28,7 @@ namespace actkin_balancer{
     cnoid::LinkPtr link2;
     bool freeX = false;
     bool freeY = false;
+    cnoid::Vector3 force = cnoid::Vector3::Zero();
     //std::shared_ptr<ik_constraint2::PositionConstraint> ikc;
   };
 
@@ -42,7 +43,7 @@ namespace actkin_balancer{
 
     // stride parameters
     cnoid::Vector3 defaultTranslatePos = cnoid::Vector3{0.0,-0.1,0.0}; // 右脚と左脚の中心からの右脚の相対位置.([m]). Z座標は0でなければならない.
-    std::vector<Eigen::Vector2d> defaultStrideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.15,-0.18),Eigen::Vector2d(-0.15,-0.18),Eigen::Vector2d(-0.15,-0.35),Eigen::Vector2d(0.15,-0.35)}; // 単位[m]. defaultのfootstepの、遊脚のエンドエフェクタの着地位置の範囲の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はlegHullとlegCollisionMarginを用いて別で評価されるので、defaultStrideLimitationHullでは考慮しなくて良い. 左右方向にsteppable regionをまたぐ場合は、これのY成分が大きくないと後ろ足がまたげない
+    std::vector<Eigen::Vector2d> defaultStrideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.2,-0.18),Eigen::Vector2d(-0.15,-0.18),Eigen::Vector2d(-0.15,-0.35),Eigen::Vector2d(0.2,-0.35)}; // 単位[m]. defaultのfootstepの、遊脚のエンドエフェクタの着地位置の範囲の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はlegHullとlegCollisionMarginを用いて別で評価されるので、defaultStrideLimitationHullでは考慮しなくて良い. 左右方向にsteppable regionをまたぐ場合は、これのY成分が大きくないと後ろ足がまたげない
     double defaultSwingVelocityRatio = 0.5; // 0~1. maxSwingVelocityの何倍か
 
     double maxSwingXYVelocity = 1.0; // 0より大きい. 単位[m/s].
@@ -60,23 +61,25 @@ namespace actkin_balancer{
     double resolutionTheta = 0.087266; // 5deg
     double resolutionTime = 0.05; // [s]
     double resolutionXY = 0.02; // [m]
-    double liftXYThre1 = 0.015; // [m] resolution程度に大きくておく
+    double liftXYThre1 = 0.03; // [m] resolution程度に大きくておく
     double liftXYThre2 = 0.05; // [m]
     double liftThetaThre = 0.087266; // [m] resolution程度に大きくしておく
     double liftRatioThre = 1.0; // 0より大きい
     double delayTimeOffset = 0.1; // [s]. 0.2sは実績あり
+    double contactDetectionThreshold = 50.0;
+    double contactDetectionThreshold2 = 10.0;
+    double stepHeight = 0.05; // footstepの足上げ高さ[m]. 0以上
+    double contactMargin = 0.05;
 
     // 出力用
     double muTrans = 0.5; // 大股で歩くときはZMP-COMの位置関係的に、垂直抗力と並進力の比がそこまで大きな差にならないので、0.1~0.3程度だと足りない場合がある.
-    double muRot = 0.05; // 旋回歩行時に必要なので、小さすぎてはいけない
+    double muRot = 0.0005; // 旋回歩行時に必要なので、小さすぎてはいけない
+    double minFz = 50.0;
+    double maxFz = 2000.0;
     double regionMargin = 0.05; // legHullの周囲[m]をregionとする
 
     // 出力用 hullから自動計算
-    Eigen::MatrixXd wrenchC; // endeffector frame. link1がlink2から受ける力に関する接触力制約. ?x6
-    cnoid::VectorX wrenchld;
-    cnoid::VectorX wrenchud;
     Region3D region; // endeffector frame.
-    double stepHeight = 0.05; // footstepの足上げ高さ[m]. 0以上
 
     void updateFromHull();
     void flipY(EEParam& param); //このEEParamのY成分を反転させてparamにコピーする. nameとparentLink以外
@@ -125,8 +128,10 @@ namespace actkin_balancer{
     std::vector<std::vector<cnoid::Vector3> > steppableRegion; // world frame. 着地可能領域の凸包の集合. 要素数0なら、全ての領域が着地可能として扱われる.
     std::vector<double> steppableHeight; //  world frame. 要素数と順序はsteppableRegionと同じ。steppableRegionの各要素の重心Z.
 
-    // legContacts
+    // legContacts.     // これは毎周期変更される
     std::vector<bool> actContact = std::vector<bool>{false,false};// rleg, lleg. contactsから計算されるactual contact
+    std::vector<std::vector<Eigen::Vector2d> > surface; // rleg/lleg. endeffector frame.半時計回り
+
   public:
     std::unordered_map<std::string, cnoid::LinkPtr> nameLinkMap; // MODE_ABC中はconstant. URDFのLink名 -> linkPtr
     std::unordered_map<cnoid::LinkPtr, std::string> linkNameMap; // MODE_ABC中はconstant. linkPtr -> URDFのLink名

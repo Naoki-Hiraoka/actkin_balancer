@@ -4,6 +4,7 @@
 #include <eigen_rtm_conversions/eigen_rtm_conversions.h>
 
 namespace actkin_balancer{
+  // 返り値は水平
   bool RefRB::calcRBCoords(const State& state, cnoid::Isometry3& coords) {
     if(state.actContact[RLEG] && state.actContact[LLEG]) {
       coords = mathutil::orientCoordToAxis(mathutil::calcMidCoords(std::vector<cnoid::Isometry3>{state.ee[RLEG].parentLink->T() * state.ee[RLEG].localPose,state.ee[LLEG].parentLink->T() * state.ee[LLEG].localPose},
@@ -28,7 +29,7 @@ namespace actkin_balancer{
   bool RefRB::isSatisfied(const State& state) const {
     cnoid::Isometry3 rbCoords;
     if(RefRB::calcRBCoords(state,rbCoords)){
-      if((rbCoords.translation() - this->rb[0].translation()).norm() <= this->xyGoalTorelance &&
+      if((rbCoords.translation() - this->rb[0].translation()).head<2>().norm() <= this->xyGoalTorelance &&
          std::abs(cnoid::AngleAxisd(this->rb[0].linear() * rbCoords.linear().transpose()).angle()) <= this->yawGoalTorelance
          ) {
         return true;
