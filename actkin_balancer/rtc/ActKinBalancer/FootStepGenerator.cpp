@@ -2,101 +2,119 @@
 #include "MathUtil.h"
 #include <cnoid/EigenUtil>
 #include <cnoid/TimeMeasure>
+#include <iomanip>
 
 namespace actkin_balancer{
+
   void FootStepGenerator::onStartBalancer(const State& state){
     this->prevTarget = nullptr;
 
     this->initialCandidateBoth = std::make_shared<FootStepCandidate>();
     this->initialCandidateBoth->supportLeg = NUM_LEGS;
 
-    for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
-      this->initialCandidateCurrent[supportLeg] = std::make_shared<FootStepCandidate>();
-      this->initialCandidateCurrent[supportLeg]->supportLeg = supportLeg;
-      this->initialCandidateCurrent[supportLeg]->keepDouble = false;
-    }
-
     this->initialCandidates.clear();
     this->initialCandidates.resize(NUM_LEGS);
     this->initialCandidatesDouble.clear();
     this->initialCandidatesDouble.resize(NUM_LEGS);
+
+
+    {
+      // timeをsample
+      this->sampledTime.clear();
+      for(double t = 0.0; t<state.ee[RLEG].maxSwingTime;t+=state.ee[RLEG].resolutionTime){
+        this->sampledTime.push_back(t);
+      }
+    }
+
+    {
+      // doubletimeをsample
+      this->sampledDoubleTime.clear();
+      for(double t = 0.0; t<state.ee[RLEG].maxDoubleTime;t+=state.ee[RLEG].resolutionTime){
+        this->sampledDoubleTime.push_back(t);
+      }
+    }
+
     for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
       int swingLeg = (supportLeg == RLEG) ? LLEG : RLEG;
 
-      // thetaをsample
-      std::vector<double> sampledThetas; // 支持脚相対
       {
+        // thetaをsample
+        this->sampledTheta[swingLeg].clear(); // 支持脚相対
         // resolutionThetaおきにsample
         for(double theta=0.0;theta<=state.ee[swingLeg].strideLimitationMaxTheta;theta+=state.ee[swingLeg].resolutionTheta){
           if(theta < state.ee[swingLeg].strideLimitationMinTheta) continue;
-          sampledThetas.push_back(theta);
+          this->sampledTheta[swingLeg].push_back(theta);
         }
         for(double theta=0.0-state.ee[swingLeg].resolutionTheta;theta>=state.ee[swingLeg].strideLimitationMinTheta;theta-=state.ee[swingLeg].resolutionTheta){
           if(theta > state.ee[swingLeg].strideLimitationMaxTheta) continue;
-          sampledThetas.push_back(theta);
+          this->sampledTheta[swingLeg].insert(this->sampledTheta[swingLeg].begin(),theta);
         }
-      } // theta
+      }
 
-      // XYをsample. Zには0を入れる
-      std::vector<cnoid::Vector3> sampledPs; // 支持脚相対
       {
-        // resolutionXYおきにsample
-        std::vector<cnoid::Vector2d> tmp;
+        // Xをsample.
+        this->sampledX[swingLeg].clear(); // 支持脚相対
+        std::vector<Eigen::Vector2d> tmp;
         double minX = - mathutil::findExtremes(state.ee[swingLeg].strideLimitationHull, -Eigen::Vector2d::UnitX(), tmp);
         double maxX = mathutil::findExtremes(state.ee[swingLeg].strideLimitationHull, Eigen::Vector2d::UnitX(), tmp);
-        double minY = - mathutil::findExtremes(state.ee[swingLeg].strideLimitationHull, -Eigen::Vector2d::UnitY(), tmp);
-        double maxY = mathutil::findExtremes(state.ee[swingLeg].strideLimitationHull, Eigen::Vector2d::UnitY(), tmp);
-
         cnoid::Vector3 origin = state.ee[swingLeg].defaultTranslatePos - state.ee[supportLeg].defaultTranslatePos;
         for(double x=origin[0];x<=maxX;x+=state.ee[swingLeg].resolutionXY){
           if(x < minX) continue;
-          for(double y=origin[1];y<=maxY;y+=state.ee[swingLeg].resolutionXY){
-            if(y < minY) continue;
-            sampledPs.push_back(cnoid::Vector3(x,y,0.0));
-          }
-          for(double y=origin[1]-state.ee[swingLeg].resolutionXY;y>=minY;y-=state.ee[swingLeg].resolutionXY){
-            if(y > maxY) continue;
-            sampledPs.push_back(cnoid::Vector3(x,y,0.0));
-          }
+          this->sampledX[swingLeg].push_back(x);
         }
         for(double x=origin[0]-state.ee[swingLeg].resolutionXY;x>=minX;x-=state.ee[swingLeg].resolutionXY){
           if(x > maxX) continue;
-          for(double y=origin[1];y<=maxY;y+=state.ee[swingLeg].resolutionXY){
-            if(y < minY) continue;
-            sampledPs.push_back(cnoid::Vector3(x,y,0.0));
-          }
-          for(double y=origin[1]-state.ee[swingLeg].resolutionXY;y>=minY;y-=state.ee[swingLeg].resolutionXY){
-            if(y > maxY) continue;
-            sampledPs.push_back(cnoid::Vector3(x,y,0.0));
-          }
+          this->sampledX[swingLeg].insert(this->sampledX[swingLeg].begin(),x);
+        }
+      }
+
+
+      {
+        // Yをsample. Zには0を入れる
+        this->sampledY[swingLeg].clear(); // 支持脚相対
+        std::vector<Eigen::Vector2d> tmp;
+        double minY = - mathutil::findExtremes(state.ee[swingLeg].strideLimitationHull, -Eigen::Vector2d::UnitY(), tmp);
+        double maxY = mathutil::findExtremes(state.ee[swingLeg].strideLimitationHull, Eigen::Vector2d::UnitY(), tmp);
+        cnoid::Vector3 origin = state.ee[swingLeg].defaultTranslatePos - state.ee[supportLeg].defaultTranslatePos;
+        for(double y=origin[1];y<=maxY;y+=state.ee[swingLeg].resolutionXY){
+          if(y < minY) continue;
+          this->sampledY[swingLeg].push_back(y);
+        }
+        for(double y=origin[1]-state.ee[swingLeg].resolutionXY;y>=minY;y-=state.ee[swingLeg].resolutionXY){
+          if(y > maxY) continue;
+          this->sampledY[swingLeg].insert(this->sampledY[swingLeg].begin(),y);
         }
       }
 
       // stride limitationとZ高さのみ考慮してcandidateを作る
-      for(int i=0;i<sampledThetas.size();i++){
-        double theta = sampledThetas[i];
+      for(int i=0;i<this->sampledTheta[swingLeg].size();i++){
+        double theta = this->sampledTheta[swingLeg][i];
         std::vector<Eigen::Vector2d> realStrideLimitationHull; // 支持脚相対
         this->calcRealStrideLimitationHull(swingLeg, theta, state, state.ee[swingLeg].strideLimitationHull,
                                            realStrideLimitationHull);
-        for(int j=0;j<sampledPs.size();j++){
-          if(mathutil::isInsideHull(sampledPs[j].head<2>(),realStrideLimitationHull)){
-            // 高さが範囲内かを判定する TODO
-            std::shared_ptr<FootStepCandidate> candidate = std::make_shared<FootStepCandidate>();
-            candidate->supportLeg = supportLeg;
-            candidate->keepDouble = false;
-            candidate->p = sampledPs[j];
-            candidate->theta = theta;
-            candidate->pose.translation() = candidate->p;
-            candidate->pose.linear() = cnoid::AngleAxisd(candidate->theta, cnoid::Vector3::UnitZ()).toRotationMatrix();
-            candidate->pose2D.translation() = candidate->p.head<2>();
-            candidate->pose2D.linear() = Eigen::Rotation2Dd(candidate->theta).toRotationMatrix();
-            candidate->minTime = 0.0;
-            candidate->maxTime = state.ee[swingLeg].maxSwingTime;
-            this->initialCandidates[supportLeg].push_back(candidate);
-
-            candidate = std::make_shared<FootStepCandidate>(*candidate); // copy
-            candidate->keepDouble = true;
-            this->initialCandidatesDouble[supportLeg].push_back(candidate);
+        for(int x=0;x<this->sampledX[swingLeg].size();x++){
+          for(int y=0;y<this->sampledY[swingLeg].size();y++){
+            Eigen::Vector2d p(this->sampledX[swingLeg][x],this->sampledY[swingLeg][y]);
+            if(!mathutil::isInsideHull(p,realStrideLimitationHull)) continue;
+            for(int t=0;t<this->sampledDoubleTime.size();t++){
+              std::shared_ptr<FootStepCandidate> candidate = std::make_shared<FootStepCandidate>();
+              candidate->supportLeg = supportLeg;
+              candidate->doubleTime = this->sampledDoubleTime[t];
+              candidate->doubleTimeIdx = t;
+              candidate->p.head<2>() = p;
+              candidate->xIdx = x;
+              candidate->yIdx = y;
+              candidate->theta = theta;
+              candidate->thetaIdx = i;
+              candidate->pose.translation() = candidate->p;
+              candidate->pose.linear() = cnoid::AngleAxisd(candidate->theta, cnoid::Vector3::UnitZ()).toRotationMatrix();
+              candidate->pose2D.translation() = candidate->p.head<2>();
+              candidate->pose2D.linear() = Eigen::Rotation2Dd(candidate->theta).toRotationMatrix();
+              candidate->minTime = 0.0;
+              candidate->maxTime = state.ee[swingLeg].maxSwingTime;
+              if(t==0) this->initialCandidates[supportLeg].push_back(candidate);
+              else this->initialCandidatesDouble[supportLeg].push_back(candidate);
+            }
           }
         }
       }
@@ -194,13 +212,6 @@ namespace actkin_balancer{
           }
         }
 
-        this->initialCandidateCurrent[supportLeg]->p = legCoordsHorizontal[supportLeg].inverse() * legCoords[swingLeg].translation();
-        this->initialCandidateCurrent[supportLeg]->theta = Eigen::Rotation2Dd(legCoords2D[supportLeg].linear().inverse() * legCoords2D[swingLeg].linear()).smallestAngle();
-        this->initialCandidateCurrent[supportLeg]->pose = legCoordsHorizontal[supportLeg].inverse() * legCoords[swingLeg];
-        this->initialCandidateCurrent[supportLeg]->pose2D = legCoords2D[supportLeg].inverse() * legCoords2D[swingLeg];
-        this->initialCandidateCurrent[supportLeg]->minTime = 0.0;
-        this->initialCandidateCurrent[supportLeg]->maxTime = state.ee[swingLeg].maxSwingTime;
-        candidates.push_back(this->initialCandidateCurrent[supportLeg]);
       }
 
       nextCandidates.reserve(candidates.size());
@@ -214,6 +225,9 @@ namespace actkin_balancer{
       std::cerr << "stride limitation " << candidates.size() << " ";
       for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
       std::cerr << std::endl;
+    }
+    if(debugLevel >= 3){
+      this->print(candidates);
     }
     if(this->debugLevel >= 1) std::cerr << "stride limitation: " << timer.measure() << "[s]." << std::endl;
 
@@ -263,6 +277,22 @@ namespace actkin_balancer{
     // reachable時間で絞り込み
     {
       nextCandidates.clear();
+
+      std::vector<std::vector<std::vector<std::vector<double> > > > minTimes(NUM_LEGS); // supportLegがrleg/lleg. x. y. theta.
+      for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
+        int swingLeg = (supportLeg == RLEG) ? LLEG : RLEG;
+        minTimes[supportLeg].resize(this->sampledX[swingLeg].size());
+        for(int x=0;x<this->sampledX[swingLeg].size();x++){
+          minTimes[supportLeg][x].resize(this->sampledY[swingLeg].size());
+          for(int y=0;y<this->sampledY[swingLeg].size();y++){
+            minTimes[supportLeg][x][y].resize(this->sampledTheta[swingLeg].size());
+            for(int th=0;th<this->sampledTheta[swingLeg].size();th++){
+              minTimes[supportLeg][x][y][th] = -1;
+            }
+          }
+        }
+      }
+
       for(int i=0;i<candidates.size();i++){
         if(candidates[i]->supportLeg == NUM_LEGS) {
           nextCandidates.push_back(candidates[i]);
@@ -271,17 +301,23 @@ namespace actkin_balancer{
 
         int supportLeg = candidates[i]->supportLeg;
         int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
-        cnoid::Isometry3 targetPose = legCoordsHorizontal[supportLeg] * candidates[i]->pose; // world frame
+        double minTime;
+
+        if(minTimes[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx] >= 0){
+          minTime = minTimes[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx];
+        }else{
+          cnoid::Isometry3 targetPose = legCoordsHorizontal[supportLeg] * candidates[i]->pose; // world frame
+          std::vector<cnoid::Isometry3> path;
+          std::vector<double> time;
+          bool nearContact;
+          this->calcPath(swingLeg, state, targetPose, 0.0, legCoords, true,
+                         path, time, nearContact);
+          minTime = time.back();
+          minTimes[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx] = minTime;
+        }
 
         double nextMinTime = candidates[i]->minTime;
         double nextMaxTime = candidates[i]->maxTime;
-
-        std::vector<cnoid::Isometry3> path;
-        std::vector<double> time;
-        bool nearContact;
-        this->calcPath(swingLeg, state, targetPose, 0.0, legCoords, true,
-                       path, time, nearContact);
-        double minTime = time.back();
 
         if(minTime <= nextMinTime){
           // OK
@@ -312,6 +348,9 @@ namespace actkin_balancer{
       std::cerr << "reachiable " << candidates.size() << " ";
       for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
       std::cerr << std::endl;
+    }
+    if(debugLevel >= 3){
+      this->print(candidates);
     }
     if(this->debugLevel >= 1) std::cerr << "reachiable: " << timer.measure() << "[s]." << std::endl;
 
@@ -361,107 +400,141 @@ namespace actkin_balancer{
       }
       mathutil::calcConvexHull(supportHullBoth,supportHullBoth);
 
-      std::vector<double> samplingTimes; //[s]
-      std::vector<std::vector<std::vector<Eigen::Vector2d> > > enddcms(NUM_LEGS); // supportLegがrleg/lleg. samplingTimeごと. 支持脚相対
+      std::vector<std::vector<std::vector<std::vector<Eigen::Vector2d> > > > enddcms(NUM_LEGS); // supportLegがrleg/lleg. doubleTime. samplingTime. 支持脚相対
       {
-        for(double t = 0.0;;){
-          samplingTimes.push_back(t);
-          if(t >= state.ee[RLEG].maxSwingTime) break;
-          t = std::min(t + state.ee[RLEG].resolutionTime, state.ee[RLEG].maxSwingTime);
-        }
         for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
+          enddcms[supportLeg].resize(this->sampledDoubleTime.size());
           Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
-          for(int i=0;i<samplingTimes.size();i++){
-            std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.surface[supportLeg].size();v++){
-              Eigen::Vector2d vrp = state.surface[supportLeg][v];
-              enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * samplingTimes[i]) + vrp);
+          for(int j=0;j<this->sampledDoubleTime.size();j++){
+            enddcms[supportLeg][j].resize(this->sampledTime.size());
+            std::vector<Eigen::Vector2d> startdcm; // 支持脚相対. 離地時
+            if(this->sampledDoubleTime[j]==0){
+              startdcm.push_back(dcm);
+            }else{
+              for(int v=0;v<supportHullBoth.size();v++){
+                Eigen::Vector2d vrp = supportHullBoth[v];
+                startdcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * this->sampledDoubleTime[j]) + vrp);
+              }
             }
-            mathutil::calcConvexHull(enddcm,enddcm);
-            enddcms[supportLeg].push_back(enddcm);
+
+            for(int k=0;k<this->sampledTime.size();k++){
+              std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
+              for(int v=0;v<state.surface[supportLeg].size();v++){
+                Eigen::Vector2d vrp = state.surface[supportLeg][v];
+                for(int d=0;d<startdcm.size();d++){
+                  enddcm.push_back((startdcm[d] - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * this->sampledTime[k]) + vrp);
+                }
+              }
+
+              mathutil::calcConvexHull(enddcm,enddcm);
+              enddcms[supportLeg][j][k] = enddcm;
+            }
           }
         }
       }
 
+      std::vector<std::vector<std::vector<std::vector<std::vector<Eigen::Vector2d> > > > > endSupportHulls(NUM_LEGS); // supportLegがrleg/lleg. x. y. theta.支持脚相対
+      {
+        for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
+          int swingLeg = (supportLeg == RLEG) ? LLEG : RLEG;
+          endSupportHulls[supportLeg].resize(this->sampledX[swingLeg].size());
+          for(int x=0;x<this->sampledX[swingLeg].size();x++){
+            endSupportHulls[supportLeg][x].resize(this->sampledY[swingLeg].size());
+            for(int y=0;y<this->sampledY[swingLeg].size();y++){
+              endSupportHulls[supportLeg][x][y].resize(this->sampledTheta[swingLeg].size());
+              for(int th=0;th<this->sampledTheta[swingLeg].size();th++){
+                std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
+                for(int v=0;v<state.surface[supportLeg].size();v++){
+                  endSupportHull.push_back(state.surface[supportLeg][v]);
+                }
+                Eigen::Isometry2d pose;
+                pose.translation()[0] = this->sampledX[swingLeg][x];
+                pose.translation()[1] = this->sampledY[swingLeg][y];
+                pose.linear() = Eigen::Rotation2Dd(this->sampledTheta[swingLeg][th]).toRotationMatrix();
+                endSupportHull.push_back(pose * state.ee[swingLeg].copOffset + Eigen::Vector2d(state.ee[swingLeg].resolutionXY/2,state.ee[swingLeg].resolutionXY/2));
+                endSupportHull.push_back(pose * state.ee[swingLeg].copOffset + Eigen::Vector2d(-state.ee[swingLeg].resolutionXY/2,state.ee[swingLeg].resolutionXY/2));
+                endSupportHull.push_back(pose * state.ee[swingLeg].copOffset + Eigen::Vector2d(-state.ee[swingLeg].resolutionXY/2,-state.ee[swingLeg].resolutionXY/2));
+                endSupportHull.push_back(pose * state.ee[swingLeg].copOffset + Eigen::Vector2d(state.ee[swingLeg].resolutionXY/2,-state.ee[swingLeg].resolutionXY/2));
+                mathutil::calcConvexHull(endSupportHull,endSupportHull);
+                endSupportHulls[supportLeg][x][y][th] = endSupportHull;
+              }
+            }
+          }
+        }
+      }
+
+      double minDistance = std::numeric_limits<double>::max();
       for(int i=0;i<candidates.size();i++){
-        if(candidates[i]->supportLeg == NUM_LEGS ||
-           candidates[i]->keepDouble
-           ) {
+        if(candidates[i]->supportLeg == NUM_LEGS) {
           // 現在の両足支持姿勢が0-step capturableか
           Eigen::Vector2d dcm = legCoords2D[RLEG].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // RLEG相対
           if(!mathutil::isInsideHull(dcm, supportHullBoth)) continue;
 
-          nextCandidates.push_back(candidates[i]);
+          if(minDistance == 0.0){
+            nextCandidates.push_back(candidates[i]);
+          }else{
+            minDistance = 0.0;
+            nextCandidates.clear();
+            nextCandidates.push_back(candidates[i]);
+          }
           continue;
         }
 
         // 着地時にcapturableかどうかを判定する. 遊脚は着地位置のみ
         int supportLeg = candidates[i]->supportLeg;
         int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
-        Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚
-        std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
-        for(int v=0;v<state.surface[supportLeg].size();v++){
-          endSupportHull.push_back(state.surface[supportLeg][v]);
-        }
-        endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].copOffset);
-        for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
-          endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].safeHull[v]);
-        }
-        mathutil::calcConvexHull(endSupportHull,endSupportHull);
 
         std::vector<double> capturableTime;
-        {
-          // minTimeの場合
-          std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-          for(int v=0;v<state.surface[supportLeg].size();v++){
-            Eigen::Vector2d vrp = state.surface[supportLeg][v];
-            enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->minTime) + vrp);
+        // minTimeの場合
+        int minTimeIdx = std::min(int(this->sampledTime.size())-1, std::max(0,int(candidates[i]->minTime / state.ee[swingLeg].resolutionTime))); // minTimeより小さい最大のtime
+        bool intersect1 = mathutil::isIntersectConvexHull(enddcms[supportLeg][candidates[i]->doubleTimeIdx][minTimeIdx], endSupportHulls[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx]);
+        int minTimeIdx2 = std::min(minTimeIdx+1, int(this->sampledTime.size())-1); // minTimeより大きい最小のtime
+        if(intersect1){
+          bool intersect2 = mathutil::isIntersectConvexHull(enddcms[supportLeg][candidates[i]->doubleTimeIdx][minTimeIdx2], endSupportHulls[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx]);
+          if(intersect2) {
+            capturableTime.push_back(candidates[i]->minTime);
+            capturableTime.push_back(this->sampledTime[minTimeIdx2]);
           }
-          mathutil::calcConvexHull(enddcm,enddcm);
-
-          bool intersect = mathutil::isIntersectConvexHull(enddcm, endSupportHull);
-
-          if(intersect) capturableTime.push_back(candidates[i]->minTime);
         }
-        if(capturableTime.size() != 0){ // minTimeがcapturableでないなら以後capturableになることはない
-          {
-            // maxTimeの場合
-            std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.surface[supportLeg].size();v++){
-              Eigen::Vector2d vrp = state.surface[supportLeg][v];
-              enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->maxTime) + vrp);
+
+        if(capturableTime.size() == 0){ // minTimeがcapturableでないなら以後capturableになることはない
+          if(minDistance == 0.0){
+            continue;
+          }else{
+            double distance = mathutil::calcDistanceOfTwoHull(enddcms[supportLeg][candidates[i]->doubleTimeIdx][minTimeIdx2], endSupportHulls[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx]);
+            if(distance < minDistance - state.ee[swingLeg].resolutionXY/*epsilon*/){
+              candidates[i]->maxTime = candidates[i]->minTime;
+              minDistance = distance;
+              nextCandidates.clear();
+              nextCandidates.push_back(candidates[i]);
+            }else if(distance < minDistance + state.ee[swingLeg].resolutionXY/*epsilon*/){
+              candidates[i]->maxTime = candidates[i]->minTime;
+              nextCandidates.push_back(candidates[i]);
             }
-            mathutil::calcConvexHull(enddcm,enddcm);
-
-            bool intersect = mathutil::isIntersectConvexHull(enddcm, endSupportHull);
-
-            if(intersect) capturableTime.push_back(candidates[i]->maxTime);
           }
-          if(capturableTime.size() == 1){ // minTimeはOKだがmaxTimeはだめ
-            for(int t=0;t<samplingTimes.size();t++){
-              if(samplingTimes[t] <= candidates[i]->minTime) continue;
-              if(samplingTimes[t] >= candidates[i]->maxTime) break;
-              bool intersect = mathutil::isIntersectConvexHull(enddcms[supportLeg][t], endSupportHull);
-              if(intersect) capturableTime.push_back(samplingTimes[t]);
+
+        }else{
+          // maxTimeの場合
+          int maxTimeIdx = std::min(int(this->sampledTime.size())-1, int(std::max(0.0,candidates[i]->maxTime / state.ee[swingLeg].resolutionTime)));
+          bool intersect3 = mathutil::isIntersectConvexHull(enddcms[supportLeg][candidates[i]->doubleTimeIdx][maxTimeIdx], endSupportHulls[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx]);
+          if(intersect3) capturableTime.push_back(candidates[i]->maxTime);
+
+          if(capturableTime.size() == 2){ // minTimeはOKだがmaxTimeはだめ
+            for(int t=minTimeIdx2+1;t<maxTimeIdx;t++){
+              bool intersect4 = mathutil::isIntersectConvexHull(enddcms[supportLeg][candidates[i]->doubleTimeIdx][t], endSupportHulls[supportLeg][candidates[i]->xIdx][candidates[i]->yIdx][candidates[i]->thetaIdx]);
+              if(intersect4) capturableTime.push_back(this->sampledTime[t]);
               else break;
             }
           }
-        }
-        // if(candidates[i]->theta > -0.05 && candidates[i]->theta < 0.05) {
-        //   std::cerr << "t" << t << std::endl;
-        //   std::cerr << "p" << candidates[i]->p.transpose() << std::endl;
-        //   std::cerr << "enddcm" << std::endl;
-        //   for(int I=0;I<enddcm.size();I++) std::cerr << enddcm[I].transpose() << std::endl;
-        //   std::cerr << "endSupportHull" << std::endl;
-        //   for(int I=0;I<endSupportHull.size();I++) std::cerr << endSupportHull[I].transpose() << std::endl;
-        //   std::cerr << "intersect " << intersect << std::endl;
-        // }
 
-        if(capturableTime.size() > 0){
-          std::shared_ptr<FootStepCandidate> nextCandidate = candidates[i];
-          nextCandidate->minTime = capturableTime.front();
-          nextCandidate->maxTime = capturableTime.back();
-          nextCandidates.push_back(nextCandidate);
+          candidates[i]->maxTime = capturableTime.back();
+          if(minDistance == 0.0){
+            nextCandidates.push_back(candidates[i]);
+          }else{
+              minDistance = 0.0;
+              nextCandidates.clear();
+              nextCandidates.push_back(candidates[i]);
+          }
         }
       }
 
@@ -473,170 +546,23 @@ namespace actkin_balancer{
           for(int i=0;i<candidates.size();i++){
             num[candidates[i]->supportLeg]++;
           }
-          std::cerr << "capturable(0) " << candidates.size() << " ";
+          std::cerr << "capturable " << candidates.size() << " ";
           for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
-          std::cerr << std::endl;
+          std::cerr << minDistance << std::endl;
         }
-
       }else{
-        for(int i=0;i<candidates.size();i++){
-          if(candidates[i]->supportLeg == NUM_LEGS ||
-             candidates[i]->keepDouble
-             ) {
-            // 上でチェック済み
-            continue;
-          }
-
-          // 着地時にcapturableかどうかを判定する. 遊脚もhull
-          int supportLeg = candidates[i]->supportLeg;
-          int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
-          Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚
-          std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
-          for(int v=0;v<state.surface[supportLeg].size();v++){
-            endSupportHull.push_back(state.surface[supportLeg][v]);
-          }
-          for(int v=0;v<state.ee[swingLeg].safeHull.size();v++){
-            endSupportHull.push_back(candidates[i]->pose2D * state.ee[swingLeg].safeHull[v]);
-          }
-          mathutil::calcConvexHull(endSupportHull,endSupportHull);
-
-          std::vector<double> capturableTime;
-          {
-            // minTimeの場合
-            std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.surface[supportLeg].size();v++){
-              Eigen::Vector2d vrp = state.surface[supportLeg][v];
-              enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->minTime) + vrp);
-            }
-            mathutil::calcConvexHull(enddcm,enddcm);
-
-            bool intersect = mathutil::isIntersectConvexHull(enddcm, endSupportHull);
-
-            if(intersect) capturableTime.push_back(candidates[i]->minTime);
-          }
-          if(capturableTime.size() != 0){ // minTimeがcapturableでないなら以後capturableになることはない
-            {
-              // maxTimeの場合
-              std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-              for(int v=0;v<state.surface[supportLeg].size();v++){
-                Eigen::Vector2d vrp = state.surface[supportLeg][v];
-                enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->maxTime) + vrp);
-              }
-              mathutil::calcConvexHull(enddcm,enddcm);
-
-              bool intersect = mathutil::isIntersectConvexHull(enddcm, endSupportHull);
-
-              if(intersect) capturableTime.push_back(candidates[i]->maxTime);
-            }
-            if(capturableTime.size() == 1){ // minTimeはOKだがmaxTimeはだめ
-              for(int t=0;t<samplingTimes.size();t++){
-                if(samplingTimes[t] <= candidates[i]->minTime) continue;
-                if(samplingTimes[t] >= candidates[i]->maxTime) break;
-                bool intersect = mathutil::isIntersectConvexHull(enddcms[supportLeg][t], endSupportHull);
-                if(intersect) capturableTime.push_back(samplingTimes[t]);
-                else break;
-              }
-            }
-          }
-          // if(candidates[i]->theta > -0.05 && candidates[i]->theta < 0.05) {
-          //   std::cerr << "t" << t << std::endl;
-          //   std::cerr << "p" << candidates[i]->p.transpose() << std::endl;
-          //   std::cerr << "enddcm" << std::endl;
-          //   for(int I=0;I<enddcm.size();I++) std::cerr << enddcm[I].transpose() << std::endl;
-          //   std::cerr << "endSupportHull" << std::endl;
-          //   for(int I=0;I<endSupportHull.size();I++) std::cerr << endSupportHull[I].transpose() << std::endl;
-          //   std::cerr << "intersect " << intersect << std::endl;
-          // }
-
-          if(capturableTime.size() > 0){
-            std::shared_ptr<FootStepCandidate> nextCandidate = candidates[i];
-            nextCandidate->minTime = capturableTime.front();
-            nextCandidate->maxTime = capturableTime.back();
-            nextCandidates.push_back(nextCandidate);
-          }
-        }
-
-        if(nextCandidates.size() > 0.0) {
-          candidates = nextCandidates;
-
-          if(debugLevel >= 2) {
-            std::vector<double> num(3,0);
-            for(int i=0;i<candidates.size();i++){
-              num[candidates[i]->supportLeg]++;
-            }
-            std::cerr << "capturable(1) " << candidates.size() << " ";
-            for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
-            std::cerr << std::endl;
-          }
-
-        }else{
-          // この一歩ではcapture不可. DCMとの距離を最小化.
-          double minDistance = std::numeric_limits<double>::max();
-          for(int i=0;i<candidates.size();i++){
-            if(candidates[i]->supportLeg == NUM_LEGS ||
-               candidates[i]->keepDouble) {
-              continue;
-            }
-
-            int supportLeg = candidates[i]->supportLeg;
-            int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
-            Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
-
-            std::vector<Eigen::Vector2d> endSupportHull; // 支持脚相対. 着時時
-            for(int v=0;v<state.surface[supportLeg].size();v++){
-              endSupportHull.push_back(state.surface[supportLeg][v]);
-            }
-            for(int v=0;v<state.surface[swingLeg].size();v++){
-              endSupportHull.push_back(candidates[i]->pose2D * state.surface[swingLeg][v]);
-            }
-            mathutil::calcConvexHull(endSupportHull,endSupportHull);
-
-            // minTime固定
-            std::vector<Eigen::Vector2d> enddcm; // 支持脚相対. 着時時
-            for(int v=0;v<state.surface[supportLeg].size();v++){
-              Eigen::Vector2d vrp = state.surface[supportLeg][v];
-              enddcm.push_back((dcm - vrp) * std::exp(std::sqrt(state.g / nominal.nominalZ) * candidates[i]->minTime) + vrp);
-            }
-            mathutil::calcConvexHull(enddcm,enddcm);
-
-            double distance = mathutil::calcDistanceOfTwoHull(endSupportHull, enddcm);
-
-            if(distance < minDistance - 0.001/*epsilon*/){
-              minDistance = distance;
-              nextCandidates.clear();
-              std::shared_ptr<FootStepCandidate> nextCandidate = candidates[i];
-              nextCandidate->maxTime = nextCandidate->minTime;
-              nextCandidates.push_back(nextCandidate);
-            }else if(distance < minDistance + 0.001/*epsilon*/){
-              std::shared_ptr<FootStepCandidate> nextCandidate = candidates[i];
-              nextCandidate->maxTime = nextCandidate->minTime;
-              nextCandidates.push_back(nextCandidate);
-            }
-          }
-
-          if(nextCandidates.size() > 0.0) {
-            candidates = nextCandidates;
-          }else{
-            std::cerr << "[" << instance_name << "] capturable not found" << std::endl;
-          }
-
-          if(debugLevel >= 2) {
-            std::vector<double> num(3,0);
-            for(int i=0;i<candidates.size();i++){
-              num[candidates[i]->supportLeg]++;
-            }
-            std::cerr << "capturable(2) " << candidates.size() << " ";
-            for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
-            std::cerr << std::endl;
-          }
-        }
+        std::cerr << "[" << instance_name << "] capturable not found" << std::endl;
       }
     }
     if(this->debugLevel >= 1) std::cerr << "capturable: " << timer.measure() << "[s]." << std::endl;
 
+    if(debugLevel >= 3){
+      this->print(candidates);
+    }
+
     // default stepで絞り込み.
     // thetaがcurerntよりもどれだけ近づくか
-    {
+    if(candidates.size() > 1){
       double maxDistance = - std::numeric_limits<double>::max(); // 近づいた距離
       nextCandidates.clear();
       for(int i=0;i<candidates.size();i++){
@@ -693,11 +619,14 @@ namespace actkin_balancer{
       for(int i=0;i<num.size();i++) std::cerr << num[i] << " ";
       std::cerr << std::endl;
     }
+    if(debugLevel >= 3){
+      this->print(candidates);
+    }
     if(this->debugLevel >= 1) std::cerr << "default theta: " << timer.measure() << "[s]." << std::endl;
 
     // default stepで絞り込み.
     // posがcurerntよりもどれだけ近づくか
-    {
+    if(candidates.size() > 1){
       double maxDistance = - std::numeric_limits<double>::max(); // 近づいた距離
       nextCandidates.clear();
       for(int i=0;i<candidates.size();i++){
@@ -709,12 +638,13 @@ namespace actkin_balancer{
             break;
           }
 
+          int swingLeg = (candidates[i]->supportLeg == RLEG) ? LLEG : RLEG;
           double distance = 0.0;
-          if(distance < maxDistance + 0.001/*epsilon*/) {
+          if(distance < maxDistance + state.ee[swingLeg].resolutionXY/*epsilon*/) {
             maxDistance = distance;
             nextCandidates.clear();
             nextCandidates.push_back(candidates[i]);
-          }else if(distance < maxDistance - 0.001/*epsilon*/) {
+          }else if(distance < maxDistance - state.ee[swingLeg].resolutionXY/*epsilon*/) {
             nextCandidates.push_back(candidates[i]);
           }
 
@@ -729,11 +659,11 @@ namespace actkin_balancer{
         double endError = (endp - defaultp[swingLeg]).norm();
         double distance = currentError - endError;
 
-        if(distance > maxDistance + 0.001/*epsilon*/){
+        if(distance > maxDistance + state.ee[swingLeg].resolutionXY/*epsilon*/){
           maxDistance = distance;
           nextCandidates.clear();
           nextCandidates.push_back(candidates[i]);
-        }else if(distance > maxDistance - 0.001/*epsilon*/){
+        }else if(distance > maxDistance - state.ee[swingLeg].resolutionXY/*epsilon*/){
           nextCandidates.push_back(candidates[i]);
         }
       }
@@ -748,9 +678,12 @@ namespace actkin_balancer{
     if(debugLevel >= 2) {
       std::cerr << "default pos " << candidates.size() << std::endl;
     }
+    if(debugLevel >= 3){
+      this->print(candidates);
+    }
     if(debugLevel >= 3) {
       for(int i=0;i<candidates.size();i++){
-        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
+        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->doubleTime <<  std::endl;
       }
     }
     if(this->debugLevel >= 1) std::cerr << "default pos: " << timer.measure() << "[s]." << std::endl;
@@ -812,8 +745,11 @@ namespace actkin_balancer{
     }
     if(debugLevel >= 3) {
       for(int i=0;i<candidates.size();i++){
-        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
+        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->doubleTime <<  std::endl;
       }
+    }
+    if(debugLevel >= 3){
+      this->print(candidates);
     }
     if(this->debugLevel >= 1) std::cerr << "default time: " << timer.measure() << "[s]." << std::endl;
 
@@ -822,13 +758,7 @@ namespace actkin_balancer{
     {
       nextCandidates.clear();
 
-      std::vector<bool> onleg(NUM_LEGS); // 支持脚がrleg/lleg
-      for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
-        Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
-
-        if(mathutil::isInsideHull(dcm, state.surface[supportLeg])) onleg[supportLeg] = true;
-        else onleg[supportLeg] = false;
-      }
+      double minDoubleTime = std::numeric_limits<double>::max();
 
       for(int i=0;i<candidates.size();i++){
         if(candidates[i]->supportLeg == NUM_LEGS) {
@@ -836,22 +766,12 @@ namespace actkin_balancer{
           continue;
         }
 
-        int supportLeg = candidates[i]->supportLeg;
-
-        if(candidates[i]->keepDouble){
-          if(onleg[supportLeg]) {
-            continue;
-          }else{
-            nextCandidates.push_back(candidates[i]);
-            continue;
-          }
-        }else{
-          if(onleg[supportLeg]) {
-            nextCandidates.push_back(candidates[i]);
-            continue;
-          }else{
-            continue;
-          }
+        if(candidates[i]->doubleTime < minDoubleTime - 0.001/*epsilon*/) {
+          nextCandidates.clear();
+          nextCandidates.push_back(candidates[i]);
+          minDoubleTime = candidates[i]->doubleTime;
+        }else if(candidates[i]->doubleTime < minDoubleTime + 0.001/*epsilon*/) {
+          nextCandidates.push_back(candidates[i]);
         }
       }
 
@@ -865,7 +785,7 @@ namespace actkin_balancer{
     }
     if(debugLevel >= 3) {
       for(int i=0;i<candidates.size();i++){
-        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->keepDouble <<  std::endl;
+        std::cerr << candidates[i]->supportLeg << " " << candidates[i]->minTime << " " << candidates[i]->p.transpose() << " " << candidates[i]->theta << " " << candidates[i]->doubleTime <<  std::endl;
       }
     }
 
@@ -877,7 +797,24 @@ namespace actkin_balancer{
     if(debugLevel >= 2) {
       std::cerr << "target " << target->supportLeg << std::endl;
       if(target->supportLeg != NUM_LEGS){
-        std::cerr << target->supportLeg << " " << target->minTime << " " << target->p.transpose() << " " << target->theta << " " << target->keepDouble << std::endl;
+        std::cerr << target->supportLeg << " " << target->minTime << " " << target->p.transpose() << " " << target->theta << " " << target->doubleTime << std::endl;
+      }
+    }
+
+    {
+      if(target->supportLeg != NUM_LEGS){
+        int supportLeg = (target->supportLeg);
+        int swingLeg = (target->supportLeg == RLEG) ? LLEG : RLEG;
+        cnoid::Isometry3 targetPose = legCoordsHorizontal[supportLeg] * target->pose; // world frame
+        std::vector<cnoid::Isometry3> path;
+        std::vector<double> time;
+        bool nearContact;
+        this->calcPath(swingLeg, state, targetPose, 0.0, legCoords, false,
+                       path, time, nearContact);
+        std::cerr << 0.0 << " " << legCoords[swingLeg].translation().transpose() << std::endl;
+        for(int i=0;i<path.size();i++){
+          std::cerr << time[i] << " " << path[i].translation().transpose() << std::endl;
+        }
       }
     }
 
@@ -916,7 +853,7 @@ namespace actkin_balancer{
 
       if(target->supportLeg == NUM_LEGS ||
          target->supportLeg == leg ||
-         target->keepDouble){
+         target->doubleTime > 0.0){
         output.eeGoals.back().trajectory.resize(1);
         output.eeGoals.back().trajectory[0].time = state.ee[leg].delayTimeOffset;
         output.eeGoals.back().trajectory[0].pose = legCoords[leg];
@@ -1008,7 +945,7 @@ namespace actkin_balancer{
         double time;
         cnoid::Isometry3 footOrigin; // world系
         if(target->supportLeg == NUM_LEGS ||
-           target->keepDouble){
+           target->doubleTime > 0.0){
           time = 0.0;
           footOrigin = mathutil::orientCoordToAxis(mathutil::calcMidCoords(legCoords,std::vector<double>{0.5,0.5}),cnoid::Vector3::UnitZ());
         }else{
@@ -1033,7 +970,7 @@ namespace actkin_balancer{
                                               std::vector<double>{0.5,0.5});
       p[2] += state.g / std::pow(std::sqrt(state.g / nominal.nominalZ),2);
       output.vrpGoals[0].trajectory[0].point = p;
-    }else if(target->keepDouble){
+    }else if(target->doubleTime > 0.0){
       output.vrpGoals[0].trajectory.resize(1);
       output.vrpGoals[0].trajectory[0].time = 0.0;
       cnoid::Vector3 p = legCoords[target->supportLeg].translation();
@@ -1166,12 +1103,14 @@ namespace actkin_balancer{
 
       if(!aboveTargetXY || !aboveTargetTheta){
         double reqZ = legCoords[swingLeg].translation()[2];
+        double stepHeight = std::min((target.translation().head<2>() - legCoords[swingLeg].translation().head<2>()).norm() / state.ee[swingLeg].liftRatioThre,
+                                     state.ee[swingLeg].stepHeight);
 
         // goalの上空heightのZよりも低い位置にいるなら上昇
-        reqZ = std::max(reqZ, target.translation()[2] + state.ee[swingLeg].stepHeight);
+        reqZ = std::max(reqZ, target.translation()[2] + stepHeight);
 
         // 現在位置のheightmap+heightのZよりも低い位置にいるなら上昇
-        reqZ = std::max(reqZ, legCoords[supportLeg].translation()[2] + state.ee[swingLeg].stepHeight); // TODO heightmapから取得
+        reqZ = std::max(reqZ, legCoords[supportLeg].translation()[2] + stepHeight); // TODO heightmapから取得
 
         t1 = (reqZ - legCoords[swingLeg].translation()[2]) / state.ee[swingLeg].maxSwingLiftVelocity;
         p1.translation().head<2>() = legCoords[swingLeg].translation().head<2>();
@@ -1256,5 +1195,40 @@ namespace actkin_balancer{
     // }
 
     return;
+  }
+
+  void FootStepGenerator::print(const std::vector<std::shared_ptr<FootStepCandidate> >& candidates) const{
+    std::vector<std::vector<std::vector<double> > > data(NUM_LEGS); // swinglegがrleg/lleg. x. y.
+    for(int swingLeg = 0;swingLeg<NUM_LEGS;swingLeg++){
+      data[swingLeg].resize(this->sampledX[swingLeg].size());
+      for(int x=0;x<this->sampledX[swingLeg].size();x++){
+        data[swingLeg][x].resize(this->sampledY[swingLeg].size());
+        for(int y=0;y<this->sampledY[swingLeg].size();y++){
+          data[swingLeg][x][y] = 0.0;
+        }
+      }
+    }
+
+    for(int i=0;i<candidates.size();i++){
+      if(candidates[i]->supportLeg == NUM_LEGS) continue;
+      int swingLeg = candidates[i]->supportLeg == RLEG ? LLEG : RLEG;
+
+      if(candidates[i]->maxTime > data[swingLeg][candidates[i]->xIdx][candidates[i]->yIdx]){
+        data[swingLeg][candidates[i]->xIdx][candidates[i]->yIdx] = candidates[i]->maxTime;
+      }
+    }
+
+    std::cerr << std::fixed << std::setprecision(2);
+    for(int x=0;x<this->sampledX[RLEG].size() && x<this->sampledX[LLEG].size();x++){
+      for(int y=0;y<this->sampledY[RLEG].size();y++){
+        std::cerr << data[RLEG][x][y] << " ";
+      }
+      std::cerr << ": ";
+      for(int y=0;y<this->sampledY[LLEG].size();y++){
+        std::cerr << data[LLEG][x][y] << " ";
+      }
+      std::cerr << std::endl;
+    }
+    std::cerr << std::defaultfloat << std::setprecision(6);
   }
 };

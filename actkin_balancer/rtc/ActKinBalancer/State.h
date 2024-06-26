@@ -46,9 +46,9 @@ namespace actkin_balancer{
     std::vector<Eigen::Vector2d> defaultStrideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.2,-0.18),Eigen::Vector2d(-0.15,-0.18),Eigen::Vector2d(-0.15,-0.35),Eigen::Vector2d(0.2,-0.35)}; // 単位[m]. defaultのfootstepの、遊脚のエンドエフェクタの着地位置の範囲の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はlegHullとlegCollisionMarginを用いて別で評価されるので、defaultStrideLimitationHullでは考慮しなくて良い. 左右方向にsteppable regionをまたぐ場合は、これのY成分が大きくないと後ろ足がまたげない
     double defaultSwingVelocityRatio = 0.5; // 0~1. maxSwingVelocityの何倍か
 
-    double maxSwingXYVelocity = 1.0; // 0より大きい. 単位[m/s].
-    double maxSwingLandVelocity = 0.5; // 0より大きい[m/s]. touchVelと同じくらい?
-    double maxSwingLiftVelocity = 1.5; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
+    double maxSwingXYVelocity = 1.5; // 0より大きい. 単位[m/s].
+    double maxSwingLandVelocity = 1.0; // 0より大きい[m/s]. touchVelと同じくらい?
+    double maxSwingLiftVelocity = 1.0; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
     double maxSwingThetaVelocity = 1.5; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799 + 0.01; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
     double strideLimitationMinTheta = -0.785398 - 0.01; // footstepの下限. 支持脚相対. default -45[deg]. 0以下. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
@@ -58,6 +58,7 @@ namespace actkin_balancer{
     double minLandingHeight = -0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの下限(自己干渉やIKの考慮が含まれる).
     double goalOffset = -0.05; // [m]. 遊脚軌道生成時に、次に着地する場合、鉛直方向に, 目標着地位置に対して加えるオフセット. 0以下. 遅づきに対応するためのもの. 位置制御だと着地の衝撃が大きいので0がよいが、トルク制御時や、高低差がある地形や、衝撃を気にする必要がないシミュレーションでは-0.05等にした方がよい.
     double maxSwingTime = 2.0; // [s]. 0より大きい
+    double maxDoubleTime = 1.0; // [s]. 0より大きい
     double resolutionTheta = 0.087266; // 5deg
     double resolutionTime = 0.05; // [s]
     double resolutionXY = 0.02; // [m]
