@@ -38,7 +38,7 @@ namespace actkin_balancer{
     std::string name = "rleg";
     cnoid::LinkPtr parentLink = nullptr;
     cnoid::Isometry3 localPose = cnoid::Isometry3::Identity(); // Parent Link Frame. クロスできたりジャンプできたりする脚でないと左右方向(外側向き)の着地位置修正は難しいので、その方向に転びそうになることが極力ないように内側にlocalPoseをオフセットさせておくとよい.
-    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.1,0.05),Eigen::Vector2d(-0.1,0.05),Eigen::Vector2d(-0.1,-0.05),Eigen::Vector2d(0.1,-0.05)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  面積が0でない.
+    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.09,0.05),Eigen::Vector2d(-0.09,0.05),Eigen::Vector2d(-0.09,-0.05),Eigen::Vector2d(0.09,-0.05)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  面積が0でない.
     std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.05,0.04),Eigen::Vector2d(-0.05,0.04),Eigen::Vector2d(-0.05,-0.04),Eigen::Vector2d(0.05,-0.04)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下.
 
     // stride parameters
@@ -47,7 +47,7 @@ namespace actkin_balancer{
     double defaultSwingVelocityRatio = 0.5; // 0~1. maxSwingVelocityの何倍か
 
     double maxSwingXYVelocity = 1.5; // 0より大きい. 単位[m/s].
-    double maxSwingLandVelocity = 1.0; // 0より大きい[m/s]. touchVelと同じくらい?
+    double maxSwingLandVelocity = 0.5; // 0より大きい[m/s]. touchVelと同じくらい?. 1.0だと早すぎて衝撃が大きい
     double maxSwingLiftVelocity = 1.0; // 0より大きい[m/s]. 0.2m登るときに一歩あたり1.4sくらい?
     double maxSwingThetaVelocity = 1.5; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799 + 0.01; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.

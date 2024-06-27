@@ -31,6 +31,7 @@ namespace actkin_balancer {
 
     Eigen::Vector2d calcNearestPointOfHull(const Eigen::Vector2d& p, const std::vector<Eigen::Vector2d>& contours);
 
+    // 距離0の場合は正しく計算できない
     double calcDistanceOfTwoHull(const std::vector<Eigen::Vector2d>& P, const std::vector<Eigen::Vector2d>& Q);
 
     double findExtremes(const std::vector<Eigen::Vector2d> vertices, const Eigen::Vector2d& dir, std::vector<Eigen::Vector2d>& ret);
