@@ -56,7 +56,7 @@ namespace actkin_balancer{
     double collisionMargin = 0.02; // [m]. 左右の足のhullがこの距離以上離れるようにする. 0以上.
     double maxLandingHeight = 0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの上限(自己干渉やIKの考慮が含まれる).
     double minLandingHeight = -0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの下限(自己干渉やIKの考慮が含まれる).
-    double goalOffset = -0.05; // [m]. 遊脚軌道生成時に、次に着地する場合、鉛直方向に, 目標着地位置に対して加えるオフセット. 0以下. 遅づきに対応するためのもの. 位置制御だと着地の衝撃が大きいので0がよいが、トルク制御時や、高低差がある地形や、衝撃を気にする必要がないシミュレーションでは-0.05等にした方がよい.
+    double goalOffset = -0.08; // [m]. 遊脚軌道生成時に、次に着地する場合、鉛直方向に, 目標着地位置に対して加えるオフセット. 0以下. 遅づきに対応するためのもの. 位置制御だと着地の衝撃が大きいので0がよいが、トルク制御時や、高低差がある地形や、衝撃を気にする必要がないシミュレーションでは-0.05等にした方がよい.
     double maxSwingTime = 2.0; // [s]. 0より大きい
     double maxDoubleTime = 1.0; // [s]. 0より大きい
     double resolutionTheta = 0.087266; // 5deg
