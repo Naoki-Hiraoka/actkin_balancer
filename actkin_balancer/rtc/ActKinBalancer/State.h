@@ -52,7 +52,7 @@ namespace actkin_balancer{
     double maxSwingThetaVelocity = 1.5; // 0より大きい. 単位[rad/s].
     double strideLimitationMaxTheta = 0.261799 + 0.01; // footstepの旋回上限. 支持脚相対. default 15[deg]. 0以上. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
     double strideLimitationMinTheta = -0.785398 - 0.01; // footstepの下限. 支持脚相対. default -45[deg]. 0以下. 足裏同士の干渉は自動で回避できるが、膝同士の干渉はIK以外では回避できないので、内股方向には小さくすること.
-    std::vector<Eigen::Vector2d> strideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.45,-0.15),Eigen::Vector2d(-0.45,-0.15),Eigen::Vector2d(-0.45,-0.350),Eigen::Vector2d(-0.20,-0.45),Eigen::Vector2d(0.20,-0.45),Eigen::Vector2d(0.45,-0.350)}; // footstepの上下限の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はhullとcollisionMarginを用いて別で評価されるので、strideLimitationHullでは考慮しなくて良い. 斜め方向の角を削るなどして、IKが解けるようにせよ.
+    std::vector<Eigen::Vector2d> strideLimitationHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.45,-0.15),Eigen::Vector2d(-0.45,-0.15),Eigen::Vector2d(-0.45,-0.350),Eigen::Vector2d(-0.35,-0.45),Eigen::Vector2d(0.35,-0.45),Eigen::Vector2d(0.45,-0.350)}; // footstepの上下限の凸包. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地可能領域(自己干渉やIKの考慮が含まれる). Z成分は0でないといけない. 凸形状で,上から見て半時計回り. thetaの影響はhullとcollisionMarginを用いて別で評価されるので、strideLimitationHullでは考慮しなくて良い. 斜め方向の角を削るなどして、IKが解けるようにせよ.
     double collisionMargin = 0.02; // [m]. 左右の足のhullがこの距離以上離れるようにする. 0以上.
     double maxLandingHeight = 0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの上限(自己干渉やIKの考慮が含まれる).
     double minLandingHeight = -0.25; // [m]. 反対の脚のEndEffector frame(Z軸は鉛直)で表現した着地高さの下限(自己干渉やIKの考慮が含まれる).
@@ -74,7 +74,7 @@ namespace actkin_balancer{
     Eigen::Vector2d copOffset = Eigen::Vector2d(0.0,0.02);
 
     // 出力用
-    double muTrans = 0.5; // 大股で歩くときはZMP-COMの位置関係的に、垂直抗力と並進力の比がそこまで大きな差にならないので、0.1~0.3程度だと足りない場合がある.
+    double muTrans = 0.4; // 大股で歩くときはZMP-COMの位置関係的に、垂直抗力と並進力の比がそこまで大きな差にならないので、0.1~0.3程度だと足りない場合がある. 0.5だとバタつく、滑る.
     double muRot = 0.05; // 旋回歩行時に必要なので、小さすぎてはいけない
     double minFz = 50.0;
     double maxFz = 2000.0;

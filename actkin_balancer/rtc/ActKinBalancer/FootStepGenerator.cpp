@@ -182,9 +182,9 @@ namespace actkin_balancer{
       if(state.actContact[supportLeg] && !state.actContact[swingLeg]) {
         std::vector<cnoid::Isometry3> path;
         std::vector<double> time;
-        bool nearContact;
+        bool nearContact, aboveContact;
         this->calcPath(state, this->prevTarget, std::max(0.0,this->prevTarget->minTime-dt), legCoords, true, this->prevTarget->down, legCoords2D, legCoordsHorizontal,
-                       path, time, nearContact);
+                       path, time, nearContact, aboveContact);
         this->prevTarget->minDoubleTimeIdx = 0;
         this->prevTarget->maxDoubleTimeIdx = 0;
         this->prevTarget->maxTime = time.back();
@@ -312,9 +312,9 @@ namespace actkin_balancer{
 
           std::vector<cnoid::Isometry3> path;
           std::vector<double> time;
-          bool nearContact;
+          bool nearContact, aboveContact;
           this->calcPath(state, candidates[i], 0.0, legCoords, true, false, legCoords2D, legCoordsHorizontal,
-                         path, time, nearContact);
+                         path, time, nearContact, aboveContact);
           double minTime = time.back();
 
           double nextMinTime = candidates[i]->minTime;
@@ -331,7 +331,7 @@ namespace actkin_balancer{
           std::shared_ptr<FootStepCandidate> nextCandidate = candidates[i];
           nextCandidate->minTime = nextMinTime;
           nextCandidate->maxTime = nextMaxTime;
-          nextCandidate->down = nearContact;
+          nextCandidate->down = aboveContact;
           nextCandidates.push_back(nextCandidate);
         }
 
@@ -604,7 +604,7 @@ namespace actkin_balancer{
 
           // 1同士なら、resolutionTheta以上の差があるならR/Lの一方のみを好む.
           nextCandidates.clear();
-          if( std::abs(std::abs(this->sampledTheta[RLEG][0] - this->sampledTheta[RLEG][1]) - std::abs(this->sampledTheta[LLEG][0] - this->sampledTheta[LLEG][1])) > state.ee[RLEG].resolutionTheta ) {
+          if( std::abs(std::abs(this->sampledTheta[RLEG][0] - this->sampledTheta[RLEG][1]) - std::abs(this->sampledTheta[LLEG][0] - this->sampledTheta[LLEG][1])) > state.ee[RLEG].resolutionTheta * 3/*斜面で接地時にyaw旋回してしまう場合にスタックするので緩める*/) {
             int preferedLeg = (std::abs(this->sampledTheta[RLEG][0] - this->sampledTheta[RLEG][1]) > std::abs(this->sampledTheta[LLEG][0] - this->sampledTheta[LLEG][1])) ? LLEG : RLEG; // supportleg
             for(int i=0;i<candidates.size();i++){
               if(candidates[i]->supportLeg == preferedLeg) nextCandidates.push_back(candidates[i]);
@@ -838,15 +838,15 @@ namespace actkin_balancer{
       }
     }
 
-    {
+    if(debugLevel >= 3) {
       if(target->supportLeg != NUM_LEGS){
         int supportLeg = (target->supportLeg);
         int swingLeg = (target->supportLeg == RLEG) ? LLEG : RLEG;
         std::vector<cnoid::Isometry3> path;
         std::vector<double> time;
-        bool nearContact;
+        bool nearContact, aboveContact;
         this->calcPath(state, target, 0.0, legCoords, false, target->down, legCoords2D, legCoordsHorizontal,
-                       path, time, nearContact);
+                       path, time, nearContact, aboveContact);
         std::cerr << 0.0 << " " << legCoords[swingLeg].translation().transpose() << std::endl;
         for(int i=0;i<path.size();i++){
           std::cerr << time[i] << " " << path[i].translation().transpose() << std::endl;
@@ -899,8 +899,9 @@ namespace actkin_balancer{
         int supportLeg = (leg == RLEG) ? LLEG : RLEG;
         std::vector<cnoid::Isometry3> path; // world frame
         std::vector<double> time;
+        bool aboveContact;
         this->calcPath(state, target, target->minTime, legCoords, false, target->down, legCoords2D, legCoordsHorizontal,
-                       path, time, contact);
+                       path, time, contact, aboveContact); // 斜面上り時にswing中に接地する場合に備え、aboveContactでなくてもrefContactをtrueにする
         contactPose = legCoordsHorizontal[target->supportLeg] * target->pose;
 
         if(this->debugLevel >= 2){
@@ -1106,10 +1107,11 @@ namespace actkin_balancer{
   }
 
   inline void FootStepGenerator::calcPath(const State& state, const std::shared_ptr<FootStepCandidate>& target, double refTime, const std::vector<cnoid::Isometry3>& legCoords/*world frame*/, bool timeOnly, bool forceDown, const std::vector<Eigen::Isometry2d>& legCoords2D, const std::vector<cnoid::Isometry3>& legCoordsHorizontal,
-                                   std::vector<cnoid::Isometry3>& path, std::vector<double>& time, bool& nearContact) const{
+                                   std::vector<cnoid::Isometry3>& path, std::vector<double>& time, bool& nearContact, bool& aboveContact) const{
     path.clear();
     time.clear(); // time from start
     nearContact = false;
+    aboveContact = false;
 
     /*
       XY
@@ -1216,9 +1218,12 @@ namespace actkin_balancer{
     }
 
 
+    if(t1 == 0){
+      nearContact = true;
+    }
     if(aboveTarget &&
        legCoords[swingLeg].translation()[2] <= targetCoords.translation()[2] + state.ee[swingLeg].stepHeight) {
-      nearContact = true;
+      aboveContact = true;
     }
 
     double t = 0.0;

@@ -14,7 +14,7 @@ namespace actkin_balancer {
     void calcFootSteps(const State& state, const Goal& goal, const std::string& instance_name, double dt,
                        Output& output) const;
 
-    int debugLevel = 3;
+    int debugLevel = 0;
   protected:
     void calcRealStrideLimitationHull(const int& swingLeg, const double& theta, const State& state, const std::vector<Eigen::Vector2d>& strideLimitationHull,
                                       std::vector<Eigen::Vector2d>& realStrideLimitationHull) const;
@@ -49,7 +49,7 @@ namespace actkin_balancer {
     mutable std::shared_ptr<FootStepCandidate> prevTarget = nullptr;
 
     inline void calcPath(const State& state, const std::shared_ptr<FootStepCandidate>& target, double refTime, const std::vector<cnoid::Isometry3>& legCoords/*world frame*/, bool timeOnly, bool forceDown, const std::vector<Eigen::Isometry2d>& legCoords2D, const std::vector<cnoid::Isometry3>& legCoordsHorizontal,
-                         std::vector<cnoid::Isometry3>& path, std::vector<double>& time, bool& nearContact) const;
+                         std::vector<cnoid::Isometry3>& path, std::vector<double>& time, bool& nearContact, bool& aboveContact) const;
     inline bool onTarget(const State& state, const std::shared_ptr<FootStepCandidate>& target, const std::vector<cnoid::Isometry3>& legCoords/*world frame*/, const std::vector<Eigen::Isometry2d>& legCoords2D, const std::vector<cnoid::Isometry3>& legCoordsHorizontal) const;
 
     void print(const std::vector<std::shared_ptr<FootStepCandidate> >& candidates) const;

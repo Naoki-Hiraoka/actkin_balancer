@@ -256,6 +256,7 @@ namespace actkin_balancer{
       }
       mathutil::calcConvexHull(points, points);
       this->surface[LEG] = mathutil::calcIntersectConvexHull(points, this->ee[LEG].safeHull);
+      if(this->surface[LEG].size() > 0) this->surface[LEG] = this->ee[LEG].safeHull;// こっちのほうが安定する?
       if(this->surface[LEG].size() > 0){
         this->actContact[LEG] = true;
       }else{
