@@ -900,8 +900,10 @@ namespace actkin_balancer{
         std::vector<cnoid::Isometry3> path; // world frame
         std::vector<double> time;
         bool aboveContact;
+        bool nearContact = false;
         this->calcPath(state, target, target->minTime, legCoords, false, target->down, legCoords2D, legCoordsHorizontal,
-                       path, time, contact, aboveContact); // 斜面上り時にswing中に接地する場合に備え、aboveContactでなくてもrefContactをtrueにする
+                       path, time, nearContact, aboveContact); // 斜面上り時にswing中に接地する場合に備え、aboveContactでなくてもrefContactをtrueにする
+        contact = false;
         contactPose = legCoordsHorizontal[target->supportLeg] * target->pose;
 
         if(this->debugLevel >= 2){

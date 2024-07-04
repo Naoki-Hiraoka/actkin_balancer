@@ -39,7 +39,7 @@ namespace actkin_balancer{
     std::string name = "rleg";
     cnoid::LinkPtr parentLink = nullptr;
     cnoid::Isometry3 localPose = cnoid::Isometry3::Identity(); // Parent Link Frame. クロスできたりジャンプできたりする脚でないと左右方向(外側向き)の着地位置修正は難しいので、その方向に転びそうになることが極力ないように内側にlocalPoseをオフセットさせておくとよい.
-    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.09,0.05),Eigen::Vector2d(-0.09,0.05),Eigen::Vector2d(-0.09,-0.05),Eigen::Vector2d(0.09,-0.05)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  面積が0でない.
+    std::vector<Eigen::Vector2d> hull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.11,0.06),Eigen::Vector2d(-0.11,0.06),Eigen::Vector2d(-0.11,-0.06),Eigen::Vector2d(0.11,-0.06)}; // endeffector frame.  凸形状で,上から見て半時計回り. 単位[m]. 干渉計算に使用される. JAXONでは、COPがX -0.1近くにくるとギア飛びしやすいので、少しXの下限を少なくしている.  面積が0でない.
     std::vector<Eigen::Vector2d> safeHull = std::vector<Eigen::Vector2d>{Eigen::Vector2d(0.05,0.04),Eigen::Vector2d(-0.05,0.04),Eigen::Vector2d(-0.05,-0.04),Eigen::Vector2d(0.05,-0.04)}; // endeffector frame. 単位[m]. 凸形状で,上から見て半時計回り. 大きさはhull以下.
 
     // stride parameters
@@ -71,7 +71,7 @@ namespace actkin_balancer{
     double contactDetectionThreshold = 50.0;
     double contactDetectionThreshold2 = 10.0;
     double stepHeight = 0.08; // footstepの足上げ高さ[m]. 0以上. カメラがあるなら0.05. ないなら0.08
-    double contactMargin = 0.02;
+    double contactMargin = 0.01;
     Eigen::Vector2d copOffset = Eigen::Vector2d(0.0,0.02);
 
     // 出力用
