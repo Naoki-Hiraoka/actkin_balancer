@@ -1,6 +1,7 @@
 #ifndef ACTKINBALANCER_STATE_H
 #define ACTKINBALANCER_STATE_H
 
+#include <cpp_filters/FirstOrderLowPassFilter.h>
 #include <contact_state_msgs/idl/ContactState.hh>
 #include <actkin_balancer/idl/ActKinBalancerService.hh>
 #include <unordered_map>
@@ -66,7 +67,7 @@ namespace actkin_balancer{
     double liftXYThre2 = 0.05; // [m]
     double liftThetaThre = 0.087266; // [m] resolution程度に大きくしておく
     double liftRatioThre = 1.0; // 0より大きい
-    double delayTimeOffset = 0.1; // [s]. 0.2sは実績あり
+    double delayTimeOffset = 0.2; // [s]. 0.2sは実績あり. 小さすぎると脚の角運動量の加減速が大きすぎる
     double contactDetectionThreshold = 50.0;
     double contactDetectionThreshold2 = 10.0;
     double stepHeight = 0.08; // footstepの足上げ高さ[m]. 0以上. カメラがあるなら0.05. ないなら0.08
@@ -121,7 +122,8 @@ namespace actkin_balancer{
   public:
     // from data port. 狭義のstate
     cnoid::BodyPtr robot; // actual.
-    cnoid::Vector3 cogVel = cnoid::Vector3::Zero();
+    //cnoid::Vector3 cogVel = cnoid::Vector3::Zero();
+    cpp_filters::FirstOrderLowPassFilter<cnoid::Vector3> cogVel{3.5, cnoid::Vector3::Zero()};
     std::vector<std::shared_ptr<Contact> > contacts; // actual
 
     // objects

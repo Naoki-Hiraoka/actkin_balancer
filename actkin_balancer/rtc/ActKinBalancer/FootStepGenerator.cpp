@@ -406,7 +406,7 @@ namespace actkin_balancer{
       {
         for(int supportLeg=0;supportLeg<NUM_LEGS;supportLeg++){
           startdcms[supportLeg].resize(this->sampledDoubleTime.size());
-          Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
+          Eigen::Vector2d dcm = legCoords2D[supportLeg].inverse() * (state.robot->centerOfMass() + state.cogVel.value() / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // 支持脚相対
           for(int j=0;j<this->sampledDoubleTime.size();j++){
             std::vector<Eigen::Vector2d> startdcm; // 支持脚相対. 離地時
             if(this->sampledDoubleTime[j]==0){
@@ -428,7 +428,7 @@ namespace actkin_balancer{
         for(int i=0;i<candidates.size();i++){
           if(candidates[i]->supportLeg == NUM_LEGS) {
             // 現在の両足支持姿勢が0-step capturableか
-            Eigen::Vector2d dcm = legCoords2D[RLEG].inverse() * (state.robot->centerOfMass() + state.cogVel / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // RLEG相対
+            Eigen::Vector2d dcm = legCoords2D[RLEG].inverse() * (state.robot->centerOfMass() + state.cogVel.value() / std::sqrt(state.g / nominal.nominalZ)).head<2>(); // RLEG相対
             if(!mathutil::isInsideHull(dcm, supportHullBoth[RLEG])) continue;
 
             nextCandidates.push_back(candidates[i]);
